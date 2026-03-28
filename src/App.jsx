@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-
+ 
 /* ═══════════════════════════════════════════
    SQUAD PARTNER v3
    ───────────────────────────────────────────
@@ -9,9 +9,9 @@ import { useState, useEffect } from "react";
    3. uncommment import supabase ด้านล่าง
    4. ลบ mock supabase ออก
    ═══════════════════════════════════════════ */
-
+ 
 import { supabase } from "./supabase";
-
+ 
 /* ═══════════════ DESIGN TOKENS ═══════════════ */
 const C = {
   bg: "#070e0b", bg2: "#0d1812",
@@ -21,15 +21,35 @@ const C = {
   text: "#edfdf4", sub: "#9ca3af", muted: "#6b7280",
   red: "#ef4444", blue: "#60a5fa", amber: "#fbbf24",
 };
-
+ 
 /* ═══════════════ PIN LOGIN ═══════════════ */
 const CORRECT_PIN = "198400"; // เปลี่ยน PIN ตรงนี้ได้เลย
-
+ 
+const Tag = ({ children, color = C.green, bg, border }) => (
+  <span style={{
+    fontSize: 17, fontWeight: 800, letterSpacing: ".6px",
+    padding: "3px 9px", borderRadius: 99, textTransform: "uppercase",
+    display: "inline-flex", alignItems: "center", gap: 3,
+    color, background: bg || `${color}1a`, border: `1px solid ${border || color + "40"}`,
+  }}>{children}</span>
+);
+ 
+const HexLogo = () => (
+  <div style={{ position: "relative", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style={{ position: "absolute" }}>
+      <polygon points="14,1.5 25.5,8 25.5,20 14,26.5 2.5,20 2.5,8" stroke={C.green} strokeWidth="1.5" fill="rgba(16,185,129,0.08)" />
+    </svg>
+    <svg width="13" height="13" viewBox="0 0 13 13" fill={C.green} style={{ position: "relative", zIndex: 1 }}>
+      <path d="M7.5 1L2 7.5h4.5L5 12l6-7H6.5L7.5 1z" />
+    </svg>
+  </div>
+);
+ 
 const PinLogin = ({ onSuccess }) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
-
+ 
   const handleKey = (val) => {
     if (val === "del") { setPin(p => p.slice(0,-1)); setError(false); return; }
     if (pin.length >= 6) return;
@@ -44,9 +64,9 @@ const PinLogin = ({ onSuccess }) => {
       }
     }
   };
-
+ 
   const keys = ["1","2","3","4","5","6","7","8","9","","0","del"];
-
+ 
   return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", background:C.bg, fontFamily:"'DM Sans',system-ui,sans-serif" }}>
       <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:24, padding:"40px 36px", width:320, textAlign:"center", animation:shake?"shake .4s":"none" }}>
@@ -73,14 +93,14 @@ const PinLogin = ({ onSuccess }) => {
     </div>
   );
 };
-
+ 
 /* ═══════════════ CONFIG ═══════════════ */
 const N8N_WEBHOOK_MATCH_END = "https://primary-production-e855.up.railway.app/webhook/match-end";
 const VENUE_ID = 1; // S-One Football Club
-
+ 
 /* ═══════════════ MOCK DATA (Fallback) ═══════════════ */
 const MOCK_VENUE = { id: 1, name: "S-One Football Club" };
-
+ 
 const MOCK_BOOKINGS = [
   { id: 1, time: "14:00", end: "16:00", duration: 2, name: "ทีมออฟฟิศ", players: 6, source: "offline", amount: 1200, status: "ended", field: 1 },
   { id: 2, time: "16:00", end: "18:00", duration: 2, name: "MATCH #SQ-0824-A", players: 12, total_players: 14, source: "platform", amount: 1800, status: "live", field: 1, captain_a: "กัปตัน", captain_b: "นิว" },
@@ -88,29 +108,9 @@ const MOCK_BOOKINGS = [
   { id: 4, time: "20:00", end: "22:00", duration: 2, name: "คุณบอย · เหมาสนาม", players: 0, source: "offline", amount: 1500, status: "upcoming", field: 1 },
   { id: 5, time: "22:00", end: "24:00", duration: 2, name: "", players: 0, source: "none", amount: 0, status: "available", field: 1 },
 ];
-
+ 
 /* ═══════════════ SHARED COMPONENTS ═══════════════ */
-
-const Tag = ({ children, color = C.green, bg, border }) => (
-  <span style={{
-    fontSize: 17, fontWeight: 800, letterSpacing: ".6px",
-    padding: "3px 9px", borderRadius: 99, textTransform: "uppercase",
-    display: "inline-flex", alignItems: "center", gap: 3,
-    color, background: bg || `${color}1a`, border: `1px solid ${border || color + "40"}`,
-  }}>{children}</span>
-);
-
-const HexLogo = () => (
-  <div style={{ position: "relative", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style={{ position: "absolute" }}>
-      <polygon points="14,1.5 25.5,8 25.5,20 14,26.5 2.5,20 2.5,8" stroke={C.green} strokeWidth="1.5" fill="rgba(16,185,129,0.08)" />
-    </svg>
-    <svg width="13" height="13" viewBox="0 0 13 13" fill={C.green} style={{ position: "relative", zIndex: 1 }}>
-      <path d="M7.5 1L2 7.5h4.5L5 12l6-7H6.5L7.5 1z" />
-    </svg>
-  </div>
-);
-
+ 
 const Pip = ({ filled }) => (
   <div style={{
     width: 8, height: 8, borderRadius: "50%",
@@ -118,14 +118,14 @@ const Pip = ({ filled }) => (
     boxShadow: filled ? `0 0 4px ${C.green}80` : "none",
   }} />
 );
-
+ 
 const PipBar = ({ filled, total }) => (
   <div style={{ display: "flex", gap: 2.5, flexWrap: "wrap", alignItems: "center", marginTop: 5 }}>
     {Array.from({ length: total }).map((_, i) => <Pip key={i} filled={i < filled} />)}
     <span style={{ fontSize: 18, color: C.sub, marginLeft: 4 }}>{filled}/{total}</span>
   </div>
 );
-
+ 
 const NavItem = ({ icon, label, active, badge, badgeColor, onClick }) => (
   <button onClick={onClick} style={{
     display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
@@ -148,7 +148,7 @@ const NavItem = ({ icon, label, active, badge, badgeColor, onClick }) => (
     )}
   </button>
 );
-
+ 
 const MetricCard = ({ icon, value, label, foot, footColor, highlight }) => (
   <div style={{
     background: highlight ? C.greenDim : C.surface,
@@ -161,7 +161,7 @@ const MetricCard = ({ icon, value, label, foot, footColor, highlight }) => (
     {foot && <div style={{ fontSize: 16, color: footColor || C.sub, marginTop: 3 }}>{foot}</div>}
   </div>
 );
-
+ 
 /* ═══════════════ MODAL ═══════════════ */
 const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 460 }) => {
   if (!open) return null;
@@ -177,7 +177,7 @@ const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 460 }) => 
     </div>
   );
 };
-
+ 
 /* ═══════════════ FORM INPUT ═══════════════ */
 const FormRow = ({ label, children }) => (
   <div style={{ marginBottom: 10 }}>
@@ -185,7 +185,7 @@ const FormRow = ({ label, children }) => (
     {children}
   </div>
 );
-
+ 
 const Input = ({ ...props }) => (
   <input {...props} style={{
     width: "100%", background: C.surface, border: `1px solid ${C.border}`,
@@ -197,7 +197,7 @@ const Input = ({ ...props }) => (
     onBlur={e => e.target.style.borderColor = C.border}
   />
 );
-
+ 
 const Select = ({ children, ...props }) => (
   <select {...props} style={{
     width: "100%", background: C.surface, border: `1px solid ${C.border}`,
@@ -206,7 +206,7 @@ const Select = ({ children, ...props }) => (
     ...props.style,
   }}>{children}</select>
 );
-
+ 
 const GreenBtn = ({ children, onClick, style = {} }) => (
   <button onClick={onClick} style={{
     width: "100%", padding: "11px 16px", borderRadius: 12,
@@ -216,7 +216,7 @@ const GreenBtn = ({ children, onClick, style = {} }) => (
     letterSpacing: ".3px", ...style,
   }}>{children}</button>
 );
-
+ 
 /* ═══════════════ SCHEDULE TAB ═══════════════ */
 const ScheduleTab = ({ lang, onSwitchTab }) => {
   const [activeField, setActiveField] = useState(1);
@@ -224,11 +224,11 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [offlineWarn, setOfflineWarn] = useState(false);
   const [bookingSource, setBookingSource] = useState("platform");
-
+ 
   const bookings = MOCK_BOOKINGS.filter(b => b.field === activeField);
   const th = lang === "th";
   if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
-
+ 
   const slotStyle = (b) => {
     const base = {
       display: "grid", gridTemplateColumns: "68px 1fr 100px 84px 68px",
@@ -241,7 +241,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
     if (b.status === "ended" || b.status === "available") return { ...base, opacity: .38 };
     return base;
   };
-
+ 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
@@ -268,7 +268,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               + {th ? "เพิ่มการจอง" : "Add Booking"}
             </button>
           </div>
-
+ 
           <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, overflow: "hidden" }}>
             {/* Header */}
             <div style={{ display: "grid", gridTemplateColumns: "68px 1fr 100px 84px 68px", gap: 10, padding: "9px 16px", background: "rgba(255,255,255,.025)", borderBottom: `1px solid ${C.border}` }}>
@@ -276,7 +276,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
                 <div key={i} style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1.2, color: C.muted, textTransform: "uppercase", textAlign: i >= 3 ? "right" : "left" }}>{h}</div>
               ))}
             </div>
-
+ 
             {bookings.map((b, idx) => (
               <div key={b.id} style={{ ...slotStyle(b) }} onMouseEnter={e => e.currentTarget.style.background = b.status === "live" ? "rgba(16,185,129,.1)" : "rgba(255,255,255,.025)"} onMouseLeave={e => e.currentTarget.style.background = slotStyle(b).background || ""}>
                 {/* Time */}
@@ -284,7 +284,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
                   <div style={{ fontSize: 17, fontWeight: 900, fontStyle: "italic", color: b.status === "live" ? C.greenBr : C.text }}>{b.time}</div>
                   <div style={{ fontSize: 18, color: C.muted, fontWeight: 700, marginTop: 1 }}>{b.duration} HRS</div>
                 </div>
-
+ 
                 {/* Name */}
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: b.status === "available" ? C.sub : C.text, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5 }}>
@@ -300,21 +300,21 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
                   {b.total_players && <PipBar filled={b.players} total={b.total_players} />}
                   {b.status !== "available" && !b.total_players && <div style={{ fontSize: 16, color: C.sub, marginTop: 3 }}>{b.players} {th ? "คน" : "players"}</div>}
                 </div>
-
+ 
                 {/* Source tag */}
                 <div style={{ textAlign: "center" }}>
                   {b.source === "platform" && <Tag color={C.green}>Platform</Tag>}
                   {b.source === "offline" && <Tag color={C.sub} bg="rgba(255,255,255,.06)" border={C.border}>{th ? "ออฟไลน์" : "Offline"}</Tag>}
                   {b.source === "none" && <Tag color={C.sub} bg="rgba(255,255,255,.06)" border={C.border}>{th ? "ว่าง" : "Open"}</Tag>}
                 </div>
-
+ 
                 {/* Amount */}
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 16, fontWeight: 900, color: b.status === "live" ? C.greenBr : b.amount === 0 ? C.muted : C.text }}>
                     {b.amount > 0 ? `฿${b.amount.toLocaleString()}` : "—"}
                   </div>
                 </div>
-
+ 
                 {/* Action */}
                 <div style={{ textAlign: "right" }}>
                   {b.status === "live" && (
@@ -347,7 +347,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
             ))}
           </div>
         </div>
-
+ 
         {/* RIGHT PANEL */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Platform nudge */}
@@ -372,7 +372,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               + {th ? "สร้างลิงก์จองผ่าน Platform →" : "Create Platform Booking Link →"}
             </GreenBtn>
           </div>
-
+ 
           {/* Quick offline log */}
           <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 18 }}>
             <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>
@@ -390,7 +390,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               {th ? "บันทึกออฟไลน์" : "Save Offline"}
             </button>
           </div>
-
+ 
           {/* Pending matches */}
           <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 18 }}>
             <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>
@@ -415,7 +415,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
           </div>
         </div>
       </div>
-
+ 
       {/* ADD BOOKING MODAL */}
       <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title={th ? "เพิ่มการจองใหม่" : "New Booking"} subtitle={th ? "เลือกช่องทางการจอง" : "Choose booking source"}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
@@ -452,7 +452,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
           {th ? "บันทึกการจอง" : "Save Booking"}
         </GreenBtn>
       </Modal>
-
+ 
       {/* TEAM BUILDER MODAL */}
       <Modal open={showTeamModal} onClose={() => setShowTeamModal(false)} title={th ? "จัดทีม · คุณบอย" : "Team Setup · Khun Boy"} subtitle={th ? "จองออฟไลน์ 20:00–22:00 · สนาม 1" : "Offline 20:00–22:00 · Field 1"}>
         <div style={{ background: C.greenDim, border: `1px solid ${C.borderHi}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
@@ -475,7 +475,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
     </div>
   );
 };
-
+ 
 /* ═══════════════ MATCH END TAB ═══════════════ */
 const MatchEndTab = ({ lang }) => {
   const [confirmed, setConfirmed] = useState(false);
@@ -483,7 +483,7 @@ const MatchEndTab = ({ lang }) => {
   const [capBDone, setCapBDone] = useState(false);
   const th = lang === "th";
   if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
-
+ 
   const handleConfirm = async (matchId) => {
     setConfirmed(true);
     try {
@@ -496,9 +496,9 @@ const MatchEndTab = ({ lang }) => {
       console.error("Webhook error:", e);
     }
   };
-
+ 
   const progress = [capADone, capBDone].filter(Boolean).length;
-
+ 
   return (
     <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 22, maxWidth: 580 }}>
       <div style={{ marginBottom: 20 }}>
@@ -514,7 +514,7 @@ const MatchEndTab = ({ lang }) => {
             : "After confirming, LINE Bot notifies each captain automatically. Captain submits summary — AI records Stats + XP for everyone."}
         </div>
       </div>
-
+ 
       {/* Live match row */}
       <div style={{
         display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
@@ -546,7 +546,7 @@ const MatchEndTab = ({ lang }) => {
           </button>
         )}
       </div>
-
+ 
       {/* Wait bar (shows after confirm) */}
       {confirmed && (
         <div style={{ background: "rgba(16,185,129,.06)", border: `1px solid ${C.borderHi}`, borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
@@ -574,7 +574,7 @@ const MatchEndTab = ({ lang }) => {
           </div>
         </div>
       )}
-
+ 
       {/* Already ended match */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 14, border: `1px solid ${C.border}`, background: C.surface, opacity: .45 }}>
         <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.muted, flexShrink: 0 }} />
@@ -586,7 +586,7 @@ const MatchEndTab = ({ lang }) => {
           ✓ {th ? "จบแล้ว" : "Ended"}
         </button>
       </div>
-
+ 
       {/* How it works */}
       <div style={{ marginTop: 20, background: "rgba(255,255,255,.03)", border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
         <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1.5, color: C.sub, textTransform: "uppercase", marginBottom: 12 }}>
@@ -609,7 +609,7 @@ const MatchEndTab = ({ lang }) => {
     </div>
   );
 };
-
+ 
 /* ═══════════════ SCAN MODAL ═══════════════ */
 const ScanModal = ({ open, onClose, lang }) => (
   <Modal open={open} onClose={onClose} title={lang === "th" ? "สแกน QR ผู้เล่น" : "Scan Player QR"} subtitle={lang === "th" ? "ให้ผู้เล่นแสดง QR จาก SQUAD HUB App" : "Ask player to show QR from SQUAD HUB App"} maxWidth={340}>
@@ -626,7 +626,7 @@ const ScanModal = ({ open, onClose, lang }) => (
     </div>
   </Modal>
 );
-
+ 
 /* ═══════════════ MAIN APP ═══════════════ */
 export default function SquadPartner() {
   const [tab, setTab] = useState("schedule");
@@ -634,29 +634,29 @@ export default function SquadPartner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
-
+ 
   const th = lang === "th";
   if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
-
+ 
   const navItems = [
     { id: "schedule", icon: "📅", label: th ? "ตารางสนาม" : "Schedule", badge: "5" },
     { id: "booking", icon: "📋", label: th ? "การจองทั้งหมด" : "All Bookings", badge: "2", badgeColor: "amber" },
     { id: "matchend", icon: "⏱️", label: th ? "ยืนยันแมตช์จบ" : "Confirm Match End", badge: "1", badgeColor: "amber" },
     { id: "finance", icon: "💰", label: th ? "รายได้ & กระเป๋า" : "Revenue & Wallet" },
   ];
-
+ 
   const toolItems = [
     { id: "scan", icon: "🔲", label: th ? "สแกน QR ผู้เล่น" : "Scan Player QR", action: () => setShowScan(true) },
   ];
-
+ 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'DM Sans',system-ui,sans-serif" }}>
-
+ 
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 99 }} />
       )}
-
+ 
       {/* SIDEBAR */}
       <aside style={{
         width: 236, background: C.bg2, borderRight: `1px solid ${C.border}`,
@@ -676,7 +676,7 @@ export default function SquadPartner() {
             </div>
           </div>
         </div>
-
+ 
         {/* Venue info */}
         <div style={{ padding: "13px 18px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 5 }}>{MOCK_VENUE.name}</div>
@@ -685,7 +685,7 @@ export default function SquadPartner() {
             {th ? "ออนไลน์" : "Online"}
           </div>
         </div>
-
+ 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto" }}>
           <div style={{ padding: "10px 10px 3px", fontSize: 18, fontWeight: 800, letterSpacing: 1.8, color: C.muted, textTransform: "uppercase" }}>
@@ -702,10 +702,10 @@ export default function SquadPartner() {
           ))}
         </nav>
       </aside>
-
+ 
       {/* MAIN */}
       <div style={{ marginLeft: 236, flex: 1, display: "flex", flexDirection: "column" }}>
-
+ 
         {/* Topbar */}
         <header style={{ position: "sticky", top: 0, left: 0, right: 0, height: 54, background: "rgba(7,14,11,.96)", backdropFilter: "blur(24px)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", zIndex: 90 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -743,7 +743,7 @@ export default function SquadPartner() {
             </button>
           </div>
         </header>
-
+ 
         {/* Content */}
         <main style={{ padding: 26 }}>
           {/* Metrics */}
@@ -753,7 +753,7 @@ export default function SquadPartner() {
             <MetricCard icon="⏳" value="฿4,200" label={th ? "รอถอน" : "Pending"} foot={th ? "พร้อมถอน" : "Ready"} footColor={C.amber} />
             <MetricCard icon="📊" value="78%" label={th ? "อัตราจอง" : "Utilization"} foot={`6/8 ${th ? "สล็อต" : "slots"}`} />
           </div>
-
+ 
           {/* Tab content */}
           {tab === "schedule" && <ScheduleTab lang={lang} onSwitchTab={setTab} />}
           {tab === "matchend" && <MatchEndTab lang={lang} />}
@@ -772,10 +772,10 @@ export default function SquadPartner() {
           )}
         </main>
       </div>
-
+ 
       {/* Scan Modal */}
       <ScanModal open={showScan} onClose={() => setShowScan(false)} lang={lang} />
-
+ 
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
         @keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:.45} }
