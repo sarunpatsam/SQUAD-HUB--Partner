@@ -10,16 +10,7 @@ import { useState, useEffect } from "react";
    4. ลบ mock supabase ออก
    ═══════════════════════════════════════════ */
 
-// import { supabase } from "./supabase";
-
-/* Mock supabase — ลบออกตอน production */
-const supabase = {
-  from: (table) => ({
-    select: () => ({ eq: () => ({ data: [], error: null }) }),
-    insert: async (data) => ({ data, error: null }),
-    update: async (data) => ({ eq: () => ({ data, error: null }) }),
-  }),
-};
+import { supabase } from "./supabase";
 
 /* ═══════════════ DESIGN TOKENS ═══════════════ */
 const C = {
@@ -31,9 +22,63 @@ const C = {
   red: "#ef4444", blue: "#60a5fa", amber: "#fbbf24",
 };
 
-/* ═══════════════ MOCK DATA ═══════════════
-   ลบออกและดึงจาก Supabase จริงตอน production
-   ════════════════════════════════════════ */
+/* ═══════════════ PIN LOGIN ═══════════════ */
+const CORRECT_PIN = "198400"; // เปลี่ยน PIN ตรงนี้ได้เลย
+
+const PinLogin = ({ onSuccess }) => {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const handleKey = (val) => {
+    if (val === "del") { setPin(p => p.slice(0,-1)); setError(false); return; }
+    if (pin.length >= 6) return;
+    const next = pin + val;
+    setPin(next);
+    if (next.length === 6) {
+      if (next === CORRECT_PIN) {
+        onSuccess();
+      } else {
+        setShake(true); setError(true);
+        setTimeout(() => { setPin(""); setShake(false); setError(false); }, 800);
+      }
+    }
+  };
+
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","del"];
+
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", background:C.bg, fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+      <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:24, padding:"40px 36px", width:320, textAlign:"center", animation:shake?"shake .4s":"none" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:28 }}>
+          <HexLogo />
+          <div style={{ fontSize:20, fontWeight:900, fontStyle:"italic", color:C.text }}>SQUAD<span style={{ color:C.green }}>PARTNER</span></div>
+        </div>
+        <div style={{ fontSize:16, fontWeight:700, color:C.sub, marginBottom:24 }}>ใส่ PIN 6 หลัก</div>
+        <div style={{ display:"flex", justifyContent:"center", gap:12, marginBottom:32 }}>
+          {Array.from({length:6}).map((_,i) => (
+            <div key={i} style={{ width:16, height:16, borderRadius:"50%", background: i<pin.length?(error?C.red:C.green):"rgba(255,255,255,0.12)", transition:"background .15s", boxShadow:i<pin.length&&!error?`0 0 8px ${C.green}80`:"none" }} />
+          ))}
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+          {keys.map((k,i) => (
+            <button key={i} onClick={()=>k!==""&&handleKey(k)} style={{ height:64, borderRadius:14, fontSize:k==="del"?20:26, fontWeight:800, fontFamily:"inherit", background:k===""?"transparent":k==="del"?"rgba(255,255,255,0.04)":C.surface, border:k===""?"none":`1px solid ${C.border}`, color:k==="del"?C.sub:C.text, cursor:k===""?"default":"pointer" }}>
+              {k==="del"?"⌫":k}
+            </button>
+          ))}
+        </div>
+        {error&&<div style={{ marginTop:16, fontSize:14, color:C.red, fontWeight:700 }}>PIN ไม่ถูกต้อง ลองใหม่</div>}
+      </div>
+      <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`}</style>
+    </div>
+  );
+};
+
+/* ═══════════════ CONFIG ═══════════════ */
+const N8N_WEBHOOK_MATCH_END = "https://primary-production-e855.up.railway.app/webhook/match-end";
+const VENUE_ID = 1; // S-One Football Club
+
+/* ═══════════════ MOCK DATA (Fallback) ═══════════════ */
 const MOCK_VENUE = { id: 1, name: "S-One Football Club" };
 
 const MOCK_BOOKINGS = [
@@ -48,7 +93,7 @@ const MOCK_BOOKINGS = [
 
 const Tag = ({ children, color = C.green, bg, border }) => (
   <span style={{
-    fontSize: 8, fontWeight: 800, letterSpacing: ".6px",
+    fontSize: 17, fontWeight: 800, letterSpacing: ".6px",
     padding: "3px 9px", borderRadius: 99, textTransform: "uppercase",
     display: "inline-flex", alignItems: "center", gap: 3,
     color, background: bg || `${color}1a`, border: `1px solid ${border || color + "40"}`,
@@ -77,14 +122,14 @@ const Pip = ({ filled }) => (
 const PipBar = ({ filled, total }) => (
   <div style={{ display: "flex", gap: 2.5, flexWrap: "wrap", alignItems: "center", marginTop: 5 }}>
     {Array.from({ length: total }).map((_, i) => <Pip key={i} filled={i < filled} />)}
-    <span style={{ fontSize: 9, color: C.sub, marginLeft: 4 }}>{filled}/{total}</span>
+    <span style={{ fontSize: 18, color: C.sub, marginLeft: 4 }}>{filled}/{total}</span>
   </div>
 );
 
 const NavItem = ({ icon, label, active, badge, badgeColor, onClick }) => (
   <button onClick={onClick} style={{
     display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
-    borderRadius: 10, fontSize: 12, fontWeight: 700,
+    borderRadius: 10, fontSize: 18, fontWeight: 700,
     color: active ? C.green : C.sub,
     background: active ? C.greenDim : "none",
     border: active ? `1px solid ${C.borderHi}` : "1px solid transparent",
@@ -95,7 +140,7 @@ const NavItem = ({ icon, label, active, badge, badgeColor, onClick }) => (
     <span style={{ flex: 1 }}>{label}</span>
     {badge && (
       <span style={{
-        fontSize: 9, fontWeight: 900, padding: "1px 7px", borderRadius: 99,
+        fontSize: 18, fontWeight: 900, padding: "1px 7px", borderRadius: 99,
         background: badgeColor === "amber" ? "rgba(251,191,36,.15)" : C.green,
         color: badgeColor === "amber" ? C.amber : "#000",
         border: badgeColor === "amber" ? "1px solid rgba(251,191,36,.25)" : "none",
@@ -110,10 +155,10 @@ const MetricCard = ({ icon, value, label, foot, footColor, highlight }) => (
     border: `1px solid ${highlight ? C.borderHi : C.border}`,
     borderRadius: 14, padding: 14,
   }}>
-    <div style={{ fontSize: 14, marginBottom: 4 }}>{icon}</div>
+    <div style={{ fontSize: 17, marginBottom: 4 }}>{icon}</div>
     <div style={{ fontSize: 24, fontWeight: 900, color: highlight ? C.greenBr : C.text, lineHeight: 1 }}>{value}</div>
-    <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: ".5px", color: C.sub, marginTop: 4, textTransform: "uppercase" }}>{label}</div>
-    {foot && <div style={{ fontSize: 10, color: footColor || C.sub, marginTop: 3 }}>{foot}</div>}
+    <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: ".5px", color: C.sub, marginTop: 4, textTransform: "uppercase" }}>{label}</div>
+    {foot && <div style={{ fontSize: 16, color: footColor || C.sub, marginTop: 3 }}>{foot}</div>}
   </div>
 );
 
@@ -126,7 +171,7 @@ const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 460 }) => 
       <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 20, padding: 24, width: "100%", maxWidth, maxHeight: "85vh", overflowY: "auto" }}>
         <button onClick={onClose} style={{ float: "right", background: "none", border: "none", color: C.sub, cursor: "pointer", fontSize: 18 }}>✕</button>
         <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 3, fontStyle: "italic" }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 12, color: C.sub, marginBottom: 20 }}>{subtitle}</div>}
+        {subtitle && <div style={{ fontSize: 18, color: C.sub, marginBottom: 20 }}>{subtitle}</div>}
         {children}
       </div>
     </div>
@@ -136,7 +181,7 @@ const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 460 }) => 
 /* ═══════════════ FORM INPUT ═══════════════ */
 const FormRow = ({ label, children }) => (
   <div style={{ marginBottom: 10 }}>
-    <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, color: C.sub, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1, color: C.sub, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
     {children}
   </div>
 );
@@ -144,7 +189,7 @@ const FormRow = ({ label, children }) => (
 const Input = ({ ...props }) => (
   <input {...props} style={{
     width: "100%", background: C.surface, border: `1px solid ${C.border}`,
-    borderRadius: 10, padding: "9px 12px", fontSize: 12, fontWeight: 700,
+    borderRadius: 10, padding: "9px 12px", fontSize: 18, fontWeight: 700,
     color: C.text, outline: "none", fontFamily: "inherit", boxSizing: "border-box",
     ...props.style,
   }}
@@ -156,7 +201,7 @@ const Input = ({ ...props }) => (
 const Select = ({ children, ...props }) => (
   <select {...props} style={{
     width: "100%", background: C.surface, border: `1px solid ${C.border}`,
-    borderRadius: 10, padding: "9px 12px", fontSize: 12, fontWeight: 700,
+    borderRadius: 10, padding: "9px 12px", fontSize: 18, fontWeight: 700,
     color: C.text, outline: "none", fontFamily: "inherit", boxSizing: "border-box",
     ...props.style,
   }}>{children}</select>
@@ -166,7 +211,7 @@ const GreenBtn = ({ children, onClick, style = {} }) => (
   <button onClick={onClick} style={{
     width: "100%", padding: "11px 16px", borderRadius: 12,
     background: `linear-gradient(135deg,#059669,${C.green})`,
-    border: "none", fontSize: 12, fontWeight: 800, color: "#fff",
+    border: "none", fontSize: 18, fontWeight: 800, color: "#fff",
     cursor: "pointer", boxShadow: "0 4px 18px rgba(16,185,129,.22)",
     letterSpacing: ".3px", ...style,
   }}>{children}</button>
@@ -182,6 +227,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
 
   const bookings = MOCK_BOOKINGS.filter(b => b.field === activeField);
   const th = lang === "th";
+  if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
 
   const slotStyle = (b) => {
     const base = {
@@ -205,7 +251,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
             <div style={{ display: "flex", gap: 5 }}>
               {[1, 2, 3].map(f => (
                 <button key={f} onClick={() => setActiveField(f)} style={{
-                  padding: "5px 13px", borderRadius: 99, fontSize: 11, fontWeight: 800,
+                  padding: "5px 13px", borderRadius: 99, fontSize: 17, fontWeight: 800,
                   border: `1px solid ${activeField === f ? C.green : C.border}`,
                   background: activeField === f ? C.green : "transparent",
                   color: activeField === f ? "#000" : C.sub, cursor: "pointer",
@@ -217,7 +263,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
             <button onClick={() => setShowAddModal(true)} style={{
               display: "flex", alignItems: "center", gap: 5, padding: "6px 13px",
               borderRadius: 99, background: C.surface2, border: `1px solid ${C.border}`,
-              fontSize: 11, fontWeight: 800, color: C.sub, cursor: "pointer",
+              fontSize: 17, fontWeight: 800, color: C.sub, cursor: "pointer",
             }}>
               + {th ? "เพิ่มการจอง" : "Add Booking"}
             </button>
@@ -227,7 +273,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
             {/* Header */}
             <div style={{ display: "grid", gridTemplateColumns: "68px 1fr 100px 84px 68px", gap: 10, padding: "9px 16px", background: "rgba(255,255,255,.025)", borderBottom: `1px solid ${C.border}` }}>
               {[th ? "เวลา" : "Time", th ? "รายการ" : "Booking", th ? "ช่องทาง" : "Source", th ? "ยอด" : "Amt", ""].map((h, i) => (
-                <div key={i} style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, color: C.muted, textTransform: "uppercase", textAlign: i >= 3 ? "right" : "left" }}>{h}</div>
+                <div key={i} style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1.2, color: C.muted, textTransform: "uppercase", textAlign: i >= 3 ? "right" : "left" }}>{h}</div>
               ))}
             </div>
 
@@ -235,24 +281,24 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               <div key={b.id} style={{ ...slotStyle(b) }} onMouseEnter={e => e.currentTarget.style.background = b.status === "live" ? "rgba(16,185,129,.1)" : "rgba(255,255,255,.025)"} onMouseLeave={e => e.currentTarget.style.background = slotStyle(b).background || ""}>
                 {/* Time */}
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 900, fontStyle: "italic", color: b.status === "live" ? C.greenBr : C.text }}>{b.time}</div>
-                  <div style={{ fontSize: 9, color: C.muted, fontWeight: 700, marginTop: 1 }}>{b.duration} HRS</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, fontStyle: "italic", color: b.status === "live" ? C.greenBr : C.text }}>{b.time}</div>
+                  <div style={{ fontSize: 18, color: C.muted, fontWeight: 700, marginTop: 1 }}>{b.duration} HRS</div>
                 </div>
 
                 {/* Name */}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: b.status === "available" ? C.sub : C.text, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: b.status === "available" ? C.sub : C.text, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5 }}>
                     {b.status === "available" ? (th ? "ว่าง" : "Available") : b.name}
-                    {b.status === "live" && <span style={{ fontSize: 8, fontWeight: 900, padding: "2px 7px", borderRadius: 99, background: "rgba(16,185,129,.18)", color: C.greenBr, border: `1px solid rgba(16,185,129,.3)`, animation: "livepulse 1.5s infinite" }}>LIVE</span>}
-                    {b.status === "filling" && <span style={{ fontSize: 8, fontWeight: 900, padding: "2px 7px", borderRadius: 99, background: "rgba(251,191,36,.12)", color: C.amber, border: `1px solid rgba(251,191,36,.2)` }}>{th ? "กำลังเติม" : "Filling"}</span>}
-                    {b.source === "offline" && b.status !== "available" && <span style={{ fontSize: 8, fontWeight: 900, padding: "2px 7px", borderRadius: 99, background: "rgba(255,255,255,.06)", color: C.muted, border: `1px solid ${C.border}` }}>{th ? "ออฟไลน์" : "Offline"}</span>}
+                    {b.status === "live" && <span style={{ fontSize: 17, fontWeight: 900, padding: "2px 7px", borderRadius: 99, background: "rgba(16,185,129,.18)", color: C.greenBr, border: `1px solid rgba(16,185,129,.3)`, animation: "livepulse 1.5s infinite" }}>LIVE</span>}
+                    {b.status === "filling" && <span style={{ fontSize: 17, fontWeight: 900, padding: "2px 7px", borderRadius: 99, background: "rgba(251,191,36,.12)", color: C.amber, border: `1px solid rgba(251,191,36,.2)` }}>{th ? "กำลังเติม" : "Filling"}</span>}
+                    {b.source === "offline" && b.status !== "available" && <span style={{ fontSize: 17, fontWeight: 900, padding: "2px 7px", borderRadius: 99, background: "rgba(255,255,255,.06)", color: C.muted, border: `1px solid ${C.border}` }}>{th ? "ออฟไลน์" : "Offline"}</span>}
                   </div>
                   {b.source === "offline" && b.status !== "available" && (
-                    <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>⚠️ {th ? "ไม่ได้ Stats Card · ไม่ได้ XP" : "No Stats Card · No XP"}</div>
+                    <div style={{ fontSize: 16, color: C.muted, marginTop: 3 }}>⚠️ {th ? "ไม่ได้ Stats Card · ไม่ได้ XP" : "No Stats Card · No XP"}</div>
                   )}
-                  {b.status === "available" && <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{th ? "ยังไม่มีการจอง" : "No booking yet"}</div>}
+                  {b.status === "available" && <div style={{ fontSize: 16, color: C.muted, marginTop: 3 }}>{th ? "ยังไม่มีการจอง" : "No booking yet"}</div>}
                   {b.total_players && <PipBar filled={b.players} total={b.total_players} />}
-                  {b.status !== "available" && !b.total_players && <div style={{ fontSize: 10, color: C.sub, marginTop: 3 }}>{b.players} {th ? "คน" : "players"}</div>}
+                  {b.status !== "available" && !b.total_players && <div style={{ fontSize: 16, color: C.sub, marginTop: 3 }}>{b.players} {th ? "คน" : "players"}</div>}
                 </div>
 
                 {/* Source tag */}
@@ -264,7 +310,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
 
                 {/* Amount */}
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: b.status === "live" ? C.greenBr : b.amount === 0 ? C.muted : C.text }}>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: b.status === "live" ? C.greenBr : b.amount === 0 ? C.muted : C.text }}>
                     {b.amount > 0 ? `฿${b.amount.toLocaleString()}` : "—"}
                   </div>
                 </div>
@@ -272,27 +318,27 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
                 {/* Action */}
                 <div style={{ textAlign: "right" }}>
                   {b.status === "live" && (
-                    <button onClick={() => onSwitchTab("matchend")} style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.borderHi}`, background: "transparent", color: C.green, cursor: "pointer" }}>
+                    <button onClick={() => onSwitchTab("matchend")} style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.borderHi}`, background: "transparent", color: C.green, cursor: "pointer" }}>
                       {th ? "ยืนยันจบ" : "End Match"}
                     </button>
                   )}
                   {b.status === "offline" && b.source === "offline" && b.status !== "ended" && (
-                    <button onClick={() => setShowTeamModal(true)} style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
+                    <button onClick={() => setShowTeamModal(true)} style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
                       {th ? "จัดทีม" : "Team"}
                     </button>
                   )}
                   {b.status === "upcoming" && b.source === "offline" && (
-                    <button onClick={() => setShowTeamModal(true)} style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
+                    <button onClick={() => setShowTeamModal(true)} style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
                       {th ? "จัดทีม" : "Team"}
                     </button>
                   )}
                   {(b.status === "ended" || b.status === "filling") && (
-                    <button style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
+                    <button style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
                       {th ? "ดู" : "View"}
                     </button>
                   )}
                   {b.status === "available" && (
-                    <button style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
+                    <button style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer" }}>
                       {th ? "บล็อก" : "Block"}
                     </button>
                   )}
@@ -306,7 +352,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Platform nudge */}
           <div style={{ background: "linear-gradient(135deg,rgba(16,185,129,.08),rgba(16,185,129,.04))", border: `1px solid ${C.borderHi}`, borderRadius: 16, padding: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 900, color: C.greenBr, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: C.greenBr, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}>
               ⚡ {th ? "แนะนำลูกค้าจอง Platform" : "Recommend Platform Booking"}
             </div>
             {[
@@ -317,7 +363,7 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
             ].map(([bold, sub], i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 7 }}>
                 <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.green, flexShrink: 0, marginTop: 4 }} />
-                <div style={{ fontSize: 11, color: C.sub, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 17, color: C.sub, lineHeight: 1.5 }}>
                   <strong style={{ color: C.text, fontWeight: 800 }}>{bold}</strong> — {sub}
                 </div>
               </div>
@@ -329,10 +375,10 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
 
           {/* Quick offline log */}
           <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 18 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>
               {th ? "บันทึกออฟไลน์" : "Log Offline Booking"}
             </div>
-            <div style={{ background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
+            <div style={{ background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 16, color: C.muted, lineHeight: 1.6 }}>
               ⚠️ {th ? "ออฟไลน์ไม่ได้ Stats Card, XP หรือสิทธิ์ใดๆ" : "Offline bookings have no platform perks"}
             </div>
             <FormRow label={th ? "ชื่อผู้จอง" : "Customer name"}><Input placeholder={th ? "เช่น คุณบอย" : "e.g. John"} /></FormRow>
@@ -340,14 +386,14 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               <FormRow label={th ? "เวลา" : "Time"}><Input type="time" defaultValue="22:00" /></FormRow>
               <FormRow label={th ? "ราคา ฿" : "Price ฿"}><Input placeholder="1500" /></FormRow>
             </div>
-            <button style={{ width: "100%", padding: 11, borderRadius: 12, background: C.surface2, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 800, color: C.sub, cursor: "pointer", marginTop: 2 }}>
+            <button style={{ width: "100%", padding: 11, borderRadius: 12, background: C.surface2, border: `1px solid ${C.border}`, fontSize: 18, fontWeight: 800, color: C.sub, cursor: "pointer", marginTop: 2 }}>
               {th ? "บันทึกออฟไลน์" : "Save Offline"}
             </button>
           </div>
 
           {/* Pending matches */}
           <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 18 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>
               {th ? "แมตช์รอยืนยัน" : "Matches Pending"}
             </div>
             {[
@@ -357,11 +403,11 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: m.status === "live" ? C.green : C.muted, boxShadow: m.status === "live" ? `0 0 5px ${C.green}80` : "none", flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: m.status === "ended" ? C.sub : C.text }}>MATCH #{m.id}</div>
-                  <div style={{ fontSize: 10, color: C.sub }}>{m.time}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: m.status === "ended" ? C.sub : C.text }}>MATCH #{m.id}</div>
+                  <div style={{ fontSize: 16, color: C.sub }}>{m.time}</div>
                 </div>
                 {m.status === "live"
-                  ? <><Tag color={C.amber}>{th ? "รอจบ" : "Ongoing"}</Tag><button onClick={() => onSwitchTab("matchend")} style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer", marginLeft: 4 }}>{th ? "ยืนยัน" : "Confirm"}</button></>
+                  ? <><Tag color={C.amber}>{th ? "รอจบ" : "Ongoing"}</Tag><button onClick={() => onSwitchTab("matchend")} style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.sub, cursor: "pointer", marginLeft: 4 }}>{th ? "ยืนยัน" : "Confirm"}</button></>
                   : <Tag color={C.green}>{th ? "จบแล้ว" : "Ended"}</Tag>
                 }
               </div>
@@ -381,15 +427,15 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
               color: bookingSource === src && src === "platform" ? C.green : C.sub,
             }}>
               <div style={{ fontSize: 18, marginBottom: 4 }}>{src === "platform" ? "⚡" : "📋"}</div>
-              <div style={{ fontSize: 12, fontWeight: 800 }}>{src === "platform" ? "Platform" : (th ? "ออฟไลน์" : "Offline")}</div>
-              <div style={{ fontSize: 9, opacity: .6, marginTop: 2 }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{src === "platform" ? "Platform" : (th ? "ออฟไลน์" : "Offline")}</div>
+              <div style={{ fontSize: 18, opacity: .6, marginTop: 2 }}>
                 {src === "platform" ? (th ? "ได้ Stats Card + XP" : "Gets Stats + XP") : (th ? "ไม่มีสิทธิ์พิเศษ" : "No platform perks")}
               </div>
             </button>
           ))}
         </div>
         {offlineWarn && (
-          <div style={{ background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "11px 13px", marginBottom: 14, fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
+          <div style={{ background: "rgba(255,255,255,.04)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "11px 13px", marginBottom: 14, fontSize: 17, color: C.muted, lineHeight: 1.7 }}>
             ⚠️ {th ? "การจองออฟไลน์ไม่ได้ Stats Card, XP หรือสิทธิ์ใดๆ บน Platform" : "Offline bookings have no Stats Card, XP or platform perks"}
           </div>
         )}
@@ -410,8 +456,8 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
       {/* TEAM BUILDER MODAL */}
       <Modal open={showTeamModal} onClose={() => setShowTeamModal(false)} title={th ? "จัดทีม · คุณบอย" : "Team Setup · Khun Boy"} subtitle={th ? "จองออฟไลน์ 20:00–22:00 · สนาม 1" : "Offline 20:00–22:00 · Field 1"}>
         <div style={{ background: C.greenDim, border: `1px solid ${C.borderHi}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: C.greenBr, marginBottom: 6 }}>💡 {th ? "ให้ผู้เล่นได้สิทธิ์พิเศษ" : "Give players platform perks"}</div>
-          <div style={{ fontSize: 11, color: C.sub, marginBottom: 10, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 17, fontWeight: 900, color: C.greenBr, marginBottom: 6 }}>💡 {th ? "ให้ผู้เล่นได้สิทธิ์พิเศษ" : "Give players platform perks"}</div>
+          <div style={{ fontSize: 17, color: C.sub, marginBottom: 10, lineHeight: 1.6 }}>
             {th ? "ถ้าผู้เล่นดาวน์โหลด SQUAD HUB และแสดง QR — ระบบ link Stats อัตโนมัติ" : "If players download SQUAD HUB and show QR — stats auto-link"}
           </div>
           <GreenBtn style={{ padding: 9, fontSize: 11 }}>📲 {th ? "สร้าง QR แชร์ให้ลูกค้า →" : "Create QR to share →"}</GreenBtn>
@@ -419,9 +465,9 @@ const ScheduleTab = ({ lang, onSwitchTab }) => {
         {[{ color: C.red, name: "ทีม A" }, { color: C.blue, name: "ทีม B" }].map((t, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 11, padding: "10px 13px", marginBottom: 7 }}>
             <div style={{ width: 9, height: 9, borderRadius: 2, background: t.color, flexShrink: 0 }} />
-            <input defaultValue={t.name} style={{ flex: 1, background: "transparent", border: "none", fontSize: 13, fontWeight: 800, color: C.text, outline: "none", fontFamily: "inherit" }} />
-            <span style={{ fontSize: 10, color: C.sub }}>0/7</span>
-            <button style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.borderHi}`, background: C.greenDim, color: C.green, cursor: "pointer" }}>+</button>
+            <input defaultValue={t.name} style={{ flex: 1, background: "transparent", border: "none", fontSize: 16, fontWeight: 800, color: C.text, outline: "none", fontFamily: "inherit" }} />
+            <span style={{ fontSize: 16, color: C.sub }}>0/7</span>
+            <button style={{ fontSize: 16, fontWeight: 800, padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.borderHi}`, background: C.greenDim, color: C.green, cursor: "pointer" }}>+</button>
           </div>
         ))}
         <GreenBtn style={{ marginTop: 14 }}>✓ {th ? "บันทึกทีม" : "Save Teams"}</GreenBtn>
@@ -436,21 +482,19 @@ const MatchEndTab = ({ lang }) => {
   const [capADone, setCapADone] = useState(false);
   const [capBDone, setCapBDone] = useState(false);
   const th = lang === "th";
+  if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (matchId) => {
     setConfirmed(true);
-
-    /* Production: call n8n webhook ที่นี่
-    await fetch("https://your-n8n.com/webhook/match-end", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ match_id: "SQ-0824-A", venue_id: 1 }),
-    });
-    */
-
-    // Simulate captain replies
-    setTimeout(() => setCapADone(true), 2200);
-    setTimeout(() => setCapBDone(true), 4400);
+    try {
+      await fetch(N8N_WEBHOOK_MATCH_END, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ match_id: matchId || 3, venue_id: VENUE_ID }),
+      });
+    } catch(e) {
+      console.error("Webhook error:", e);
+    }
   };
 
   const progress = [capADone, capBDone].filter(Boolean).length;
@@ -458,13 +502,13 @@ const MatchEndTab = ({ lang }) => {
   return (
     <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 22, maxWidth: 580 }}>
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>
           {th ? "ยืนยันแมตช์จบ" : "Confirm Match End"}
         </div>
-        <div style={{ fontSize: 20, fontWeight: 900, color: C.text, fontStyle: "italic" }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: C.text, fontStyle: "italic" }}>
           {th ? "สนามกดจบ — ผู้เล่นอัพ Stats เอง" : "Venue confirms end — Players update stats"}
         </div>
-        <div style={{ fontSize: 12, color: C.sub, marginTop: 5, lineHeight: 1.7 }}>
+        <div style={{ fontSize: 18, color: C.sub, marginTop: 5, lineHeight: 1.7 }}>
           {th
             ? "หลังกด \"ยืนยันแมตช์จบ\" ระบบส่ง LINE Message หากัปตันแต่ละทีมอัตโนมัติ กัปตันสรุปผล — AI บันทึก Stats + XP ให้ทุกคน"
             : "After confirming, LINE Bot notifies each captain automatically. Captain submits summary — AI records Stats + XP for everyone."}
@@ -479,8 +523,8 @@ const MatchEndTab = ({ lang }) => {
       }}>
         <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.green, boxShadow: `0 0 8px ${C.green}99`, flexShrink: 0, animation: "pulse 1.5s infinite" }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 900, color: C.text }}>MATCH #SQ-0824-A</div>
-          <div style={{ fontSize: 11, color: C.sub, marginTop: 3 }}>
+          <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>MATCH #SQ-0824-A</div>
+          <div style={{ fontSize: 17, color: C.sub, marginTop: 3 }}>
             16:00–18:00 · Field 1 · 12 {th ? "ผู้เล่น" : "players"} ·{" "}
             <span style={{ color: C.amber, fontWeight: 700 }}>
               {th ? "กัปตัน: กัปตัน (A), นิว (B)" : "Captains: Captain (A), Niw (B)"}
@@ -491,13 +535,13 @@ const MatchEndTab = ({ lang }) => {
           <button onClick={handleConfirm} style={{
             display: "flex", alignItems: "center", gap: 7, padding: "9px 18px",
             borderRadius: 11, background: `linear-gradient(135deg,#059669,${C.green})`,
-            border: "none", fontSize: 12, fontWeight: 800, color: "#fff",
+            border: "none", fontSize: 18, fontWeight: 800, color: "#fff",
             cursor: "pointer", boxShadow: "0 4px 16px rgba(16,185,129,.25)", whiteSpace: "nowrap",
           }}>
             ✓ {th ? "ยืนยันแมตช์จบ" : "Confirm Match End"}
           </button>
         ) : (
-          <button style={{ padding: "9px 18px", borderRadius: 11, background: C.surface, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 800, color: C.sub, cursor: "default" }}>
+          <button style={{ padding: "9px 18px", borderRadius: 11, background: C.surface, border: `1px solid ${C.border}`, fontSize: 18, fontWeight: 800, color: C.sub, cursor: "default" }}>
             {th ? "✓ ส่งแล้ว" : "✓ Sent"}
           </button>
         )}
@@ -506,7 +550,7 @@ const MatchEndTab = ({ lang }) => {
       {/* Wait bar (shows after confirm) */}
       {confirmed && (
         <div style={{ background: "rgba(16,185,129,.06)", border: `1px solid ${C.borderHi}`, borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: C.green, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.green, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
             🤖 {th ? "LINE Bot ส่งแล้ว · รอกัปตันตอบกลับ" : "LINE Bot sent · Waiting for captains"}
           </div>
           {[
@@ -514,10 +558,10 @@ const MatchEndTab = ({ lang }) => {
             { av: "น", name: th ? "นิว" : "Niw", team: "B", done: capBDone },
           ].map((c, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(16,185,129,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900, color: C.green }}>{c.av}</div>
-              <div style={{ flex: 1, fontSize: 11, fontWeight: 700, color: C.text }}>{c.name} <span style={{ fontSize: 9, color: C.sub }}>· {th ? "ทีม" : "Team"} {c.team}</span></div>
-              <span style={{ fontSize: 9, fontWeight: 800, color: C.amber, background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.2)", padding: "1px 6px", borderRadius: 99 }}>🎖️ {th ? "กัปตัน" : "Captain"}</span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: c.done ? C.green : C.muted }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(16,185,129,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 900, color: C.green }}>{c.av}</div>
+              <div style={{ flex: 1, fontSize: 17, fontWeight: 700, color: C.text }}>{c.name} <span style={{ fontSize: 18, color: C.sub }}>· {th ? "ทีม" : "Team"} {c.team}</span></div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: C.amber, background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.2)", padding: "1px 6px", borderRadius: 99 }}>🎖️ {th ? "กัปตัน" : "Captain"}</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: c.done ? C.green : C.muted }}>
                 {c.done ? `✓ ${th ? "ตอบแล้ว" : "Replied"}` : (th ? "รอตอบ..." : "Waiting...")}
               </span>
             </div>
@@ -525,7 +569,7 @@ const MatchEndTab = ({ lang }) => {
           <div style={{ height: 4, background: "rgba(255,255,255,.06)", borderRadius: 99, marginTop: 12, overflow: "hidden" }}>
             <div style={{ height: "100%", background: `linear-gradient(90deg,#059669,${C.green})`, borderRadius: 99, width: `${progress * 50}%`, transition: "width .6s ease" }} />
           </div>
-          <div style={{ fontSize: 10, color: progress === 2 ? C.green : C.sub, marginTop: 5, textAlign: "right", fontWeight: progress === 2 ? 800 : 400 }}>
+          <div style={{ fontSize: 16, color: progress === 2 ? C.green : C.sub, marginTop: 5, textAlign: "right", fontWeight: progress === 2 ? 800 : 400 }}>
             {progress === 2 ? `✅ ${th ? "Stats & XP อัพแล้วทุกคน!" : "Stats & XP updated for all!"}` : `${progress}/2 ${th ? "ตอบแล้ว" : "replied"}`}
           </div>
         </div>
@@ -535,17 +579,17 @@ const MatchEndTab = ({ lang }) => {
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 14, border: `1px solid ${C.border}`, background: C.surface, opacity: .45 }}>
         <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.muted, flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 900, color: C.sub }}>MATCH #SQ-0823-A</div>
-          <div style={{ fontSize: 11, color: C.sub, marginTop: 3 }}>14:00–16:00 · <span style={{ color: C.green, fontWeight: 700 }}>✓ {th ? "กัปตันตอบแล้ว · Stats อัพแล้ว" : "Captain replied · Stats updated"}</span></div>
+          <div style={{ fontSize: 17, fontWeight: 900, color: C.sub }}>MATCH #SQ-0823-A</div>
+          <div style={{ fontSize: 17, color: C.sub, marginTop: 3 }}>14:00–16:00 · <span style={{ color: C.green, fontWeight: 700 }}>✓ {th ? "กัปตันตอบแล้ว · Stats อัพแล้ว" : "Captain replied · Stats updated"}</span></div>
         </div>
-        <button style={{ padding: "9px 18px", borderRadius: 11, background: C.surface, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 800, color: C.sub, cursor: "default" }}>
+        <button style={{ padding: "9px 18px", borderRadius: 11, background: C.surface, border: `1px solid ${C.border}`, fontSize: 18, fontWeight: 800, color: C.sub, cursor: "default" }}>
           ✓ {th ? "จบแล้ว" : "Ended"}
         </button>
       </div>
 
       {/* How it works */}
       <div style={{ marginTop: 20, background: "rgba(255,255,255,.03)", border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
-        <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: C.sub, textTransform: "uppercase", marginBottom: 12 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1.5, color: C.sub, textTransform: "uppercase", marginBottom: 12 }}>
           {th ? "ระบบทำงานยังไง" : "How it works"}
         </div>
         {[
@@ -555,8 +599,8 @@ const MatchEndTab = ({ lang }) => {
           [th ? "AI อัพ Stats + XP ให้ทุกคนอัตโนมัติ" : "AI auto-updates Stats + XP for all", th ? "ไม่มีใครต้องทำอะไรอีก" : "No one needs to do anything else"],
         ].map(([title, sub], i) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: i < 3 ? 10 : 0 }}>
-            <div style={{ width: 22, height: 22, borderRadius: "50%", background: C.greenDim, border: `1px solid ${C.borderHi}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 900, color: C.green, flexShrink: 0 }}>{i + 1}</div>
-            <div style={{ fontSize: 11, color: C.sub, paddingTop: 2, lineHeight: 1.6 }}>
+            <div style={{ width: 22, height: 22, borderRadius: "50%", background: C.greenDim, border: `1px solid ${C.borderHi}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 900, color: C.green, flexShrink: 0 }}>{i + 1}</div>
+            <div style={{ fontSize: 17, color: C.sub, paddingTop: 2, lineHeight: 1.6 }}>
               <strong style={{ color: i === 3 ? C.green : C.text }}>{title}</strong><br />{sub}
             </div>
           </div>
@@ -578,7 +622,7 @@ const ScanModal = ({ open, onClose, lang }) => (
           <rect x="27" y="27" width="15" height="15" rx="2" />
         </svg>
       </div>
-      <div style={{ fontSize: 11, color: C.sub }}>{lang === "th" ? "กำลังรอสแกน..." : "Waiting for scan..."}</div>
+      <div style={{ fontSize: 17, color: C.sub }}>{lang === "th" ? "กำลังรอสแกน..." : "Waiting for scan..."}</div>
     </div>
   </Modal>
 );
@@ -589,8 +633,10 @@ export default function SquadPartner() {
   const [lang, setLang] = useState("th");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScan, setShowScan] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
 
   const th = lang === "th";
+  if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
 
   const navItems = [
     { id: "schedule", icon: "📅", label: th ? "ตารางสนาม" : "Schedule", badge: "5" },
@@ -622,10 +668,10 @@ export default function SquadPartner() {
         <div style={{ padding: "16px 18px 13px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 9 }}>
           <HexLogo />
           <div>
-            <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: "-.3px", fontStyle: "italic", color: C.text }}>
+            <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-.3px", fontStyle: "italic", color: C.text }}>
               SQUAD<span style={{ color: C.green }}>PARTNER</span>
             </div>
-            <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 2, color: C.muted, textTransform: "uppercase", marginTop: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 2, color: C.muted, textTransform: "uppercase", marginTop: 1 }}>
               {th ? "ระบบจัดการสนาม" : "Venue Admin"}
             </div>
           </div>
@@ -633,8 +679,8 @@ export default function SquadPartner() {
 
         {/* Venue info */}
         <div style={{ padding: "13px 18px", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 5 }}>{MOCK_VENUE.name}</div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9, fontWeight: 800, letterSpacing: ".8px", textTransform: "uppercase", color: C.green, background: C.greenDim, border: `1px solid ${C.borderHi}`, padding: "3px 9px", borderRadius: 99 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 5 }}>{MOCK_VENUE.name}</div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 18, fontWeight: 800, letterSpacing: ".8px", textTransform: "uppercase", color: C.green, background: C.greenDim, border: `1px solid ${C.borderHi}`, padding: "3px 9px", borderRadius: 99 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.green, animation: "pulse 2s infinite" }} />
             {th ? "ออนไลน์" : "Online"}
           </div>
@@ -642,13 +688,13 @@ export default function SquadPartner() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto" }}>
-          <div style={{ padding: "10px 10px 3px", fontSize: 9, fontWeight: 800, letterSpacing: 1.8, color: C.muted, textTransform: "uppercase" }}>
+          <div style={{ padding: "10px 10px 3px", fontSize: 18, fontWeight: 800, letterSpacing: 1.8, color: C.muted, textTransform: "uppercase" }}>
             {th ? "จัดการ" : "Manage"}
           </div>
           {navItems.map(item => (
             <NavItem key={item.id} icon={item.icon} label={item.label} active={tab === item.id} badge={item.badge} badgeColor={item.badgeColor} onClick={() => { setTab(item.id); setSidebarOpen(false); }} />
           ))}
-          <div style={{ padding: "10px 10px 3px", marginTop: 8, fontSize: 9, fontWeight: 800, letterSpacing: 1.8, color: C.muted, textTransform: "uppercase" }}>
+          <div style={{ padding: "10px 10px 3px", marginTop: 8, fontSize: 18, fontWeight: 800, letterSpacing: 1.8, color: C.muted, textTransform: "uppercase" }}>
             {th ? "เครื่องมือ" : "Tools"}
           </div>
           {toolItems.map(item => (
@@ -665,10 +711,10 @@ export default function SquadPartner() {
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ display: "none", background: "none", border: "none", cursor: "pointer", color: C.sub, padding: 4 }}>☰</button>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: C.text, fontStyle: "italic", textTransform: "uppercase", letterSpacing: ".3px" }}>
+              <div style={{ fontSize: 17, fontWeight: 900, color: C.text, fontStyle: "italic", textTransform: "uppercase", letterSpacing: ".3px" }}>
                 {navItems.find(n => n.id === tab)?.label || ""}
               </div>
-              <div style={{ fontSize: 10, color: C.sub, marginTop: 1 }}>
+              <div style={{ fontSize: 16, color: C.sub, marginTop: 1 }}>
                 {th ? "อาทิตย์ 15 มี.ค. 2026 · 3 สนาม" : "Sun 15 Mar 2026 · 3 Fields"}
               </div>
             </div>
@@ -677,7 +723,7 @@ export default function SquadPartner() {
             {/* Lang toggle */}
             <div style={{ display: "flex", border: `1px solid ${C.border}`, borderRadius: 99, overflow: "hidden", background: C.surface }}>
               {["th", "en"].map(l => (
-                <button key={l} onClick={() => setLang(l)} style={{ padding: "4px 10px", fontSize: 9, fontWeight: 800, background: lang === l ? C.greenDim : "transparent", border: "none", color: lang === l ? C.green : C.sub, cursor: "pointer", borderRadius: 99, letterSpacing: ".8px" }}>
+                <button key={l} onClick={() => setLang(l)} style={{ padding: "4px 10px", fontSize: 18, fontWeight: 800, background: lang === l ? C.greenDim : "transparent", border: "none", color: lang === l ? C.green : C.sub, cursor: "pointer", borderRadius: 99, letterSpacing: ".8px" }}>
                   {l.toUpperCase()}
                 </button>
               ))}
@@ -685,14 +731,14 @@ export default function SquadPartner() {
             {/* Wallet */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "6px 14px" }}>
               <div>
-                <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.2, color: C.sub, textTransform: "uppercase" }}>{th ? "ยอดคงเหลือ" : "Balance"}</div>
-                <div style={{ fontSize: 15, fontWeight: 900, color: C.text, fontStyle: "italic" }}>฿14,500</div>
+                <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 1.2, color: C.sub, textTransform: "uppercase" }}>{th ? "ยอดคงเหลือ" : "Balance"}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: C.text, fontStyle: "italic" }}>฿14,500</div>
               </div>
             </div>
-            <button style={{ padding: "6px 13px", borderRadius: 99, background: C.greenDim, border: `1px solid ${C.borderHi}`, fontSize: 10, fontWeight: 800, color: C.green, cursor: "pointer" }}>
+            <button style={{ padding: "6px 13px", borderRadius: 99, background: C.greenDim, border: `1px solid ${C.borderHi}`, fontSize: 16, fontWeight: 800, color: C.green, cursor: "pointer" }}>
               {th ? "ถอนเงิน" : "Withdraw"}
             </button>
-            <button onClick={() => setShowScan(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 15px", borderRadius: 13, background: `linear-gradient(135deg,#059669,${C.green})`, border: "none", fontSize: 11, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(16,185,129,.28)" }}>
+            <button onClick={() => setShowScan(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 15px", borderRadius: 13, background: `linear-gradient(135deg,#059669,${C.green})`, border: "none", fontSize: 17, fontWeight: 800, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(16,185,129,.28)" }}>
               🔲 {th ? "สแกนผู้เล่น" : "Scan Player"}
             </button>
           </div>
@@ -713,15 +759,15 @@ export default function SquadPartner() {
           {tab === "matchend" && <MatchEndTab lang={lang} />}
           {tab === "booking" && (
             <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 22, maxWidth: 600 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 6 }}>{th ? "การจองทั้งหมดวันนี้" : "All Bookings Today"}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 6 }}>{th ? "การจองทั้งหมดวันนี้" : "All Bookings Today"}</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 18 }}><Tag color={C.green}>Platform 3</Tag><Tag color={C.sub} bg="rgba(255,255,255,.06)" border={C.border}>{th ? "ออฟไลน์ 2" : "Offline 2"}</Tag></div>
-              <div style={{ fontSize: 12, color: C.sub, textAlign: "center", padding: "24px 0" }}>{th ? "รายการจองทั้งหมดจะแสดงเมื่อเชื่อมกับ Supabase" : "Full booking list appears when connected to Supabase"}</div>
+              <div style={{ fontSize: 18, color: C.sub, textAlign: "center", padding: "24px 0" }}>{th ? "รายการจองทั้งหมดจะแสดงเมื่อเชื่อมกับ Supabase" : "Full booking list appears when connected to Supabase"}</div>
             </div>
           )}
           {tab === "finance" && (
             <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18, padding: 22, maxWidth: 480 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>{th ? "รายได้และกระเป๋าเงิน" : "Revenue & Wallet"}</div>
-              <div style={{ fontSize: 12, color: C.sub, textAlign: "center", padding: "24px 0" }}>{th ? "ระบบการเงินจะแสดงเมื่อเชื่อมกับ Supabase" : "Finance dashboard appears when connected to Supabase"}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, color: C.green, textTransform: "uppercase", marginBottom: 14 }}>{th ? "รายได้และกระเป๋าเงิน" : "Revenue & Wallet"}</div>
+              <div style={{ fontSize: 18, color: C.sub, textAlign: "center", padding: "24px 0" }}>{th ? "ระบบการเงินจะแสดงเมื่อเชื่อมกับ Supabase" : "Finance dashboard appears when connected to Supabase"}</div>
             </div>
           )}
         </main>
