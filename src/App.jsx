@@ -755,57 +755,75 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
         )}
 
         {/* ── SCHEDULE ── */}
-        {mTab==="schedule"&&(
-          <div>
-            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>
-              ตารางวันนี้
+       {mTab==="schedule"&&(
+  <div>
+    {/* Mini metrics */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+      <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"12px 14px"}}>
+        <div style={{fontSize:20,fontWeight:900,color:C.greenBr,lineHeight:1}}>{liveSlots.length}</div>
+        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Live ตอนนี้</div>
+      </div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
+        <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.reduce((a,s)=>a+(s.players||0),0)}</div>
+        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>ผู้เล่นวันนี้</div>
+      </div>
+    </div>
+
+    {/* Calendar Grid — horizontal scroll ถ้าหลายสนาม */}
+    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:14}}>
+      <div style={{minWidth: displaySlots.length>0 ? Math.max(...displaySlots.map(s=>s.field||1))*160+60 : 380}}>
+
+        {/* Header */}
+        <div style={{display:"grid",gridTemplateColumns:`52px repeat(${Math.max(...(displaySlots.map(s=>s.field||1)),3)},1fr)`,marginBottom:4}}>
+          <div/>
+          {Array.from({length:Math.max(...(displaySlots.map(s=>s.field||1)),3)}).map((_,i)=>(
+            <div key={i} style={{padding:"6px 8px",fontSize:10,fontWeight:800,letterSpacing:1,color:C.muted,textTransform:"uppercase",textAlign:"center"}}>
+              ⚽ สนาม {i+1}
             </div>
-            {/* Metrics mini */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-              <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"12px 14px"}}>
-                <div style={{fontSize:20,fontWeight:900,color:C.greenBr,lineHeight:1}}>{displaySlots.filter(s=>s.status!=="available"&&s.status!=="offline"||s.source==="platform").length}</div>
-                <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Platform slots</div>
+          ))}
+        </div>
+
+        {/* Rows */}
+        {TIMES.map(time=>{
+          const fieldCount = Math.max(...(displaySlots.map(s=>s.field||1)),3);
+          return(
+            <div key={time} style={{display:"grid",gridTemplateColumns:`52px repeat(${fieldCount},1fr)`,marginBottom:4,minHeight:64}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,color:C.muted,fontStyle:"italic",flexShrink:0}}>
+                {time}
               </div>
-              <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
-                <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.reduce((a,s)=>a+(s.players||0),0)}</div>
-                <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>ผู้เล่นวันนี้</div>
-              </div>
-            </div>
-            {displaySlots.map((s,i)=>(
-              <div key={s.id||i} style={{background:C.bg2,border:`1px solid ${s.status==="live"?C.borderHi:C.border}`,borderRadius:12,padding:"13px 16px",marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                      <span style={{fontSize:16,fontWeight:900,color:s.status==="live"?C.green:C.text}}>{s.time}</span>
-                      {s.status==="live"&&<div style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>}
-                    </div>
-                    <div style={{fontSize:12,color:C.sub}}>{s.name||"ว่าง"}</div>
-                    {s.total>0&&(
-                      <div style={{display:"flex",gap:2,marginTop:6,flexWrap:"wrap"}}>
-                        {Array.from({length:Math.min(s.total,14)}).map((_,pi)=>(
-                          <div key={pi} style={{width:7,height:7,borderRadius:"50%",background:pi<(s.players||0)?C.green:"rgba(255,255,255,0.1)"}}/>
-                        ))}
-                        <span style={{fontSize:10,color:C.sub,marginLeft:4}}>{s.players||0}/{s.total}</span>
+              {Array.from({length:fieldCount}).map((_,fi)=>{
+                const slot=displaySlots.find(s=>s.time===time&&s.field===fi+1);
+                return(
+                  <div key={fi} style={{padding:3}}>
+                    {slot?(
+                      <div style={{height:"100%",borderRadius:8,padding:"7px 8px",background:slot.status==="live"?"rgba(16,185,129,0.18)":slot.source==="platform"?"rgba(16,185,129,0.08)":slot.status==="full"?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${slot.status==="live"?"rgba(16,185,129,0.6)":slot.source==="platform"?"rgba(16,185,129,0.28)":slot.status==="full"?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.1)"}`,cursor:"pointer"}}
+                        onClick={()=>{if(slot.status==="live"){setActiveMatch(slot);setMTab("matchend");}}}>
+                        <div style={{fontSize:10,fontWeight:800,color:slot.status==="live"?C.greenBr:C.text,lineHeight:1.3,marginBottom:2}}>{slot.name||"—"}</div>
+                        <div style={{fontSize:8,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"}</div>
+                        {slot.total>0&&(
+                          <div style={{display:"flex",gap:2,marginTop:4,flexWrap:"wrap"}}>
+                            {Array.from({length:Math.min(slot.total,10)}).map((_,pi)=>(
+                              <div key={pi} style={{width:5,height:5,borderRadius:"50%",background:pi<(slot.players||0)?C.green:"rgba(255,255,255,0.15)"}}/>
+                            ))}
+                          </div>
+                        )}
+                        {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
+                      </div>
+                    ):(
+                      <div style={{height:"100%",borderRadius:8,border:`1px dashed rgba(255,255,255,0.07)`,display:"flex",alignItems:"center",justifyContent:"center",minHeight:58}}>
+                        <span style={{fontSize:10,color:C.muted}}>ว่าง</span>
                       </div>
                     )}
                   </div>
-                  <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                    <Tag color={s.status==="live"?C.green:s.status==="full"?C.red:s.source==="platform"?C.greenBr:C.sub}>
-                      {s.status==="live"?"LIVE":s.status==="full"?"FULL":s.source==="platform"?"Platform":"Offline"}
-                    </Tag>
-                    {s.amount>0&&<div style={{fontSize:12,fontWeight:800,color:C.sub,marginTop:4}}>฿{s.amount.toLocaleString()}</div>}
-                  </div>
-                </div>
-                {s.status==="live"&&(
-                  <button onClick={()=>{setActiveMatch(s);setMTab("matchend");}}
-                    style={{width:"100%",marginTop:10,padding:"8px",borderRadius:8,border:`1px solid rgba(251,191,36,0.4)`,background:`rgba(251,191,36,0.08)`,color:C.amber,fontSize:12,fontWeight:800,cursor:"pointer"}}>
-                    ⏱ ยืนยันแมตช์จบ
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+)}
 
         {/* ── MATCH END ── */}
         {mTab==="matchend"&&(
