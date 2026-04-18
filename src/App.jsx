@@ -23,7 +23,6 @@ const C = {
 };
 
 /* ═══════════════ PIN LOGIN ═══════════════ */
-const CORRECT_PIN = "198400"; // เปลี่ยน PIN ตรงนี้ได้เลย
 
 const Tag = ({ children, color = C.green, bg, border }) => (
   <span style={{
@@ -632,9 +631,10 @@ export default function SquadPartner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+   const [venueData, setVenueData] = useState(null);
 
   const th = lang === "th";
-  if (!unlocked) return <PinLogin onSuccess={() => setUnlocked(true)} />;
+  if (!unlocked) return <VenueLogin onSuccess={(venue) => { setVenueData(venue); setUnlocked(true); }} />;
 
   const navItems = [
     { id: "schedule", icon: "📅", label: th ? "ตารางสนาม" : "Schedule", badge: "5" },
