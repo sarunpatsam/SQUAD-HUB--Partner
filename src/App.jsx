@@ -48,21 +48,26 @@ const MetricCard = ({icon,value,label,foot,footColor,hi}) => (
 
 /* ═══ LOGIN ═══ */
 const VenueLogin = ({onSuccess}) => {
-  const [email,setEmail]=useState("");
+  const [email,setEmail]=useState(()=>localStorage.getItem("sq_partner_email")||"");
   const [password,setPassword]=useState("");
+  const [showPw,setShowPw]=useState(false);
+  const [remember,setRemember]=useState(()=>!!localStorage.getItem("sq_partner_email"));
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
+
   const handle = async () => {
     if(!email.trim()||!password.trim())return;
     setLoading(true);setError("");
     try {
       const {error:e}=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
       if(e){setError("Email หรือ Password ไม่ถูกต้อง");setLoading(false);return;}
+      if(remember) localStorage.setItem("sq_partner_email",email.trim().toLowerCase());
+      else localStorage.removeItem("sq_partner_email");
       const {data:v}=await supabase.from("venues").select("*").eq("owner_email",email.trim().toLowerCase()).single();
       onSuccess(v);
     } catch{setError("เกิดข้อผิดพลาด");setLoading(false);}
   };
-  const inp = {width:"100%",background:C.surface2,border:`1px solid ${error?C.red:C.border}`,borderRadius:10,padding:"12px 14px",fontSize:15,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
+ const inp = {width:"100%",background:C.surface2,border:`1px solid ${error?C.red:C.border}`,borderRadius:10,padding:"12px 14px",fontSize:15,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
   return (
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',system-ui,sans-serif",padding:16}}>
       <div style={{width:"100%",maxWidth:400}}>
@@ -74,9 +79,20 @@ const VenueLogin = ({onSuccess}) => {
             <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Email</div>
             <input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} placeholder="sone@squadhub.ai" type="email" style={inp}/>
           </div>
-          <div style={{marginBottom:22}}>
+          <div style={{marginBottom:16}}>
             <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Password</div>
-            <input value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} placeholder="••••••••" type="password" style={inp}/>
+            <div style={{position:"relative"}}>
+              <input value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} placeholder="••••••••" type={showPw?"text":"password"} style={{...inp,paddingRight:44}}/>
+              <button onClick={()=>setShowPw(p=>!p)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:C.sub,fontSize:16,padding:4,lineHeight:1}}>
+                {showPw?"🙈":"👁"}
+              </button>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,cursor:"pointer"}} onClick={()=>setRemember(r=>!r)}>
+            <div style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${remember?C.green:C.border}`,background:remember?C.greenDim:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+              {remember&&<span style={{fontSize:11,color:C.green,fontWeight:900}}>✓</span>}
+            </div>
+            <span style={{fontSize:13,color:C.sub,fontWeight:600,userSelect:"none"}}>จำ Email ไว้ในเครื่องนี้</span>
           </div>
           {error&&<div style={{fontSize:13,color:C.red,fontWeight:700,marginBottom:14,textAlign:"center"}}>{error}</div>}
           <Btn onClick={handle} disabled={loading||!email.trim()||!password.trim()} style={{width:"100%",padding:14,fontSize:15}}>
