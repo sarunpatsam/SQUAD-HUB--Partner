@@ -269,7 +269,19 @@ const SlotBlock = ({slot,onClick}) => {
   );
 };
 
+const MOCK_SLOTS = [
+  {id:1,date:"TODAY",time:"14:00",field:1,name:"ทีมออฟฟิศ",players:6,total:6,source:"offline",status:"offline",amount:1200},
+  {id:2,date:"TODAY",time:"16:00",field:1,name:"MATCH #SQ-0824",players:12,total:14,source:"platform",status:"live",amount:1800},
+  {id:3,date:"TODAY",time:"16:00",field:2,name:"MATCH #SQ-0825",players:8,total:14,source:"platform",status:"platform",amount:1400},
+  {id:4,date:"TODAY",time:"18:00",field:1,name:"MATCH #SQ-0826",players:4,total:14,source:"platform",status:"platform",amount:600},
+  {id:5,date:"TODAY",time:"20:00",field:1,name:"คุณบอย · เหมา",players:0,total:0,source:"offline",status:"offline",amount:1500},
+  {id:6,date:"TODAY",time:"20:00",field:2,name:"MATCH #SQ-0827",players:14,total:14,source:"platform",status:"full",amount:2100},
+];
+
 const DayView = ({fields,slots,date,onSelectSlot}) => {
+  const today = new Date().toISOString().split("T")[0];
+  const isToday = date.toISOString().split("T")[0]===today;
+  const displaySlots = isToday&&slots.length===0 ? MOCK_SLOTS : slots;
   const fieldNames = fields.map((_,i)=>`สนาม ${i+1}`);
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden"}}>
@@ -283,7 +295,7 @@ const DayView = ({fields,slots,date,onSelectSlot}) => {
         <div key={time} style={{display:"grid",gridTemplateColumns:`56px ${fieldNames.map(()=>"1fr").join(" ")}`,borderBottom:`1px solid rgba(255,255,255,0.04)`,minHeight:72}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:C.muted,fontStyle:"italic"}}>{time}</div>
           {fieldNames.map((_,fi)=>{
-            const slot = slots.find(s=>s.time===time&&s.field===fi+1);
+            const slot = displaySlots.find(s=>s.time===time&&s.field===fi+1);
             return (
               <div key={fi} style={{borderLeft:`1px solid rgba(255,255,255,0.04)`,padding:6}}>
                 <SlotBlock slot={slot} onClick={()=>onSelectSlot({field:`สนาม ${fi+1}`,time,slot})}/>
@@ -382,54 +394,226 @@ const MonthView = ({slots,monthDate,onSelectDay}) => {
   );
 };
 
+/* ═══ SHOP TAB ═══ */
+const SHOP_ITEMS=[
+  {id:1,name:"น้ำเปล่า",price:15,icon:"💧",cat:"drink"},
+  {id:2,name:"เกเตอเรด",price:35,icon:"⚡",cat:"drink"},
+  {id:3,name:"โค้ก",price:25,icon:"🥤",cat:"drink"},
+  {id:4,name:"ขนมปัง",price:20,icon:"🍞",cat:"food"},
+  {id:5,name:"กล้วยหอม",price:15,icon:"🍌",cat:"food"},
+  {id:6,name:"โปรตีนบาร์",price:60,icon:"💪",cat:"food"},
+  {id:7,name:"ถุงเท้า SQUAD HUB",price:120,icon:"🧦",cat:"gear"},
+  {id:8,name:"ผ้าเช็ดตัว",price:150,icon:"🏊",cat:"gear"},
+  {id:9,name:"เสื้อ SQUAD HUB",price:490,icon:"👕",cat:"merch"},
+];
+const ShopTab = ({ownerUnlocked}) => {
+  const [cart,setCart]=useState({});
+  const [cat,setCat]=useState("all");
+  const [payMode,setPayMode]=useState(null);
+  const [done,setDone]=useState(false);
+  const add=(id)=>setCart(c=>({...c,[id]:(c[id]||0)+1}));
+  const rem=(id)=>setCart(c=>{const n={...c};n[id]>1?n[id]--:delete n[id];return n;});
+  const items=cat==="all"?SHOP_ITEMS:SHOP_ITEMS.filter(i=>i.cat===cat);
+  const total=Object.entries(cart).reduce((s,[id,q])=>{const it=SHOP_ITEMS.find(i=>i.id===+id);return s+(it?.price||0)*q;},0);
+  const cartCount=Object.values(cart).reduce((a,b)=>a+b,0);
+  if(done)return(
+    <div style={{maxWidth:500,background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:28,textAlign:"center"}}>
+      <div style={{fontSize:52,marginBottom:12}}>✅</div>
+      <div style={{fontSize:18,fontWeight:900,color:C.green,marginBottom:6}}>รับเงินแล้ว ฿{total.toLocaleString()}</div>
+      <div style={{fontSize:13,color:C.sub,marginBottom:22}}>บันทึก transaction เรียบร้อย</div>
+      <Btn ghost onClick={()=>{setCart({});setPayMode(null);setDone(false);}} style={{width:"100%"}}>ขายต่อ</Btn>
+    </div>
+  );
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16}}>
+      <div>
+        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+          {[{id:"all",l:"ทั้งหมด"},{id:"drink",l:"🥤 เครื่องดื่ม"},{id:"food",l:"🍌 อาหาร"},{id:"gear",l:"⚽ อุปกรณ์"},{id:"merch",l:"👕 Merchandise"}].map(c=>(
+            <button key={c.id} onClick={()=>setCat(c.id)}
+              style={{padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:800,border:`1px solid ${cat===c.id?C.borderHi:C.border}`,background:cat===c.id?C.greenDim:"transparent",color:cat===c.id?C.green:C.sub,cursor:"pointer"}}>
+              {c.l}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+          {items.map(item=>(
+            <div key={item.id} onClick={()=>add(item.id)}
+              style={{background:C.bg2,border:`1px solid ${cart[item.id]?C.borderHi:C.border}`,borderRadius:14,padding:"16px 12px",textAlign:"center",cursor:"pointer",transition:"all .15s"}}>
+              <div style={{fontSize:32,marginBottom:8}}>{item.icon}</div>
+              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>{item.name}</div>
+              <div style={{fontSize:14,fontWeight:900,color:C.green}}>฿{item.price}</div>
+              {cart[item.id]>0&&(
+                <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                  <button onClick={e=>{e.stopPropagation();rem(item.id);}} style={{width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:`1px solid ${C.border}`,color:C.text,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                  <span style={{fontSize:15,fontWeight:900,color:C.greenBr}}>{cart[item.id]}</span>
+                  <button onClick={e=>{e.stopPropagation();add(item.id);}} style={{width:24,height:24,borderRadius:"50%",background:C.greenDim,border:`1px solid ${C.borderHi}`,color:C.green,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:18,position:"sticky",top:20}}>
+        <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:14}}>
+          🛒 ตะกร้า {cartCount>0&&<span style={{fontSize:12,color:C.green}}>({cartCount} รายการ)</span>}
+        </div>
+        {cartCount===0?(
+          <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13}}>ยังไม่มีสินค้า<br/>กดสินค้าเพื่อเพิ่ม</div>
+        ):(
+          <div style={{marginBottom:14}}>
+            {Object.entries(cart).map(([id,q])=>{
+              const it=SHOP_ITEMS.find(i=>i.id===+id);
+              if(!it)return null;
+              return(
+                <div key={id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid rgba(255,255,255,0.04)`}}>
+                  <div style={{fontSize:13,color:C.text}}>{it.icon} {it.name} ×{q}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:C.green}}>฿{(it.price*q).toLocaleString()}</div>
+                </div>
+              );
+            })}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:12,marginTop:4}}>
+              <div style={{fontSize:14,fontWeight:800,color:C.text}}>รวม</div>
+              <div style={{fontSize:22,fontWeight:900,color:C.green}}>฿{total.toLocaleString()}</div>
+            </div>
+          </div>
+        )}
+        {cartCount>0&&!payMode&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <button onClick={()=>setPayMode("cash")} style={{padding:"10px",borderRadius:8,border:`1px solid rgba(251,191,36,0.4)`,background:`rgba(251,191,36,0.08)`,color:C.amber,fontSize:13,fontWeight:800,cursor:"pointer"}}>💵 เงินสด</button>
+            <button onClick={()=>setPayMode("qr")} style={{padding:"10px",borderRadius:8,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,fontSize:13,fontWeight:800,cursor:"pointer"}}>📱 QR Pay</button>
+          </div>
+        )}
+        {payMode&&(
+          <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:10,padding:12,marginBottom:10,textAlign:"center"}}>
+            <div style={{fontSize:12,fontWeight:800,color:C.green,marginBottom:4}}>{payMode==="cash"?"รับเงินสด":"สแกน QR PromptPay"}</div>
+            <div style={{fontSize:22,fontWeight:900,color:C.text}}>฿{total.toLocaleString()}</div>
+          </div>
+        )}
+        {payMode&&<button onClick={()=>setDone(true)} style={{width:"100%",padding:12,borderRadius:10,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:14,fontWeight:900,cursor:"pointer"}}>✅ รับเงินแล้ว</button>}
+        {cartCount>0&&<button onClick={()=>setCart({})} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:12,fontWeight:700,cursor:"pointer"}}>ล้างตะกร้า</button>}
+        {ownerUnlocked&&(
+          <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid rgba(255,255,255,0.06)`}}>
+            <div style={{fontSize:9,fontWeight:800,color:C.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>ยอดขายวันนี้ (Owner)</div>
+            <div style={{fontSize:20,fontWeight:900,color:C.amber}}>฿1,240</div>
+            <div style={{fontSize:11,color:C.sub,marginTop:2}}>18 รายการ</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ═══ BOOKING PANEL ═══ */
+const MOCK_PLAYERS = [
+  {id:4,name:"นิว",position:"MF",tier:"Gold",ovr:80},
+  {id:1,name:"กัปตัน",position:"FW",tier:"Diamond",ovr:92},
+  {id:2,name:"อาร์ม",position:"FW",tier:"Platinum",ovr:85},
+  {id:5,name:"โจ้",position:"DF",tier:"Gold",ovr:76},
+  {id:6,name:"Sarun Jr.",position:"MF",tier:"Bronze",ovr:71},
+];
 const BookingPanel = ({selected,onSave}) => {
+  const [mode,setMode]=useState("slot"); // slot | individual
   const [type,setType]=useState("platform");
   const [name,setName]=useState("");
   const [time,setTime]=useState(selected?.time||"18:00");
   const [price,setPrice]=useState("1500");
   const [matchType,setMatchType]=useState("7v7");
-  const inp={width:"100%",background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:12};
-  return (
+  const [playerName,setPlayerName]=useState("");
+  const [addedPlayers,setAddedPlayers]=useState([]);
+  const inp={width:"100%",background:"#091510",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:12};
+  const filtered=playerName.trim().length>0?MOCK_PLAYERS.filter(p=>p.name.includes(playerName.trim())):[];
+  return(
     <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:20,position:"sticky",top:20}}>
       <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:3}}>+ สร้างการจอง</div>
-      <div style={{fontSize:12,color:C.sub,marginBottom:18}}>{selected?`${selected.field} · ${selected.time}`:"เลือก slot จาก calendar"}</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
-        {["platform","offline"].map(t=>(
-          <button key={t} onClick={()=>setType(t)}
-            style={{padding:"9px",borderRadius:8,fontSize:13,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${type===t?t==="platform"?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.2)":C.border}`,background:type===t?t==="platform"?C.greenDim:"rgba(255,255,255,0.03)":"transparent",color:type===t?t==="platform"?C.green:C.text:C.sub,transition:"all .15s"}}>
-            {t==="platform"?"⚡ Platform":"📋 Offline"}
+      <div style={{fontSize:12,color:C.sub,marginBottom:14}}>{selected?`${selected.field} · ${selected.time}`:"เลือก slot จาก calendar"}</div>
+      {/* Mode toggle */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:16}}>
+        {[{id:"slot",l:"📋 เหมาสนาม"},{id:"individual",l:"👤 รายคน"}].map(m=>(
+          <button key={m.id} onClick={()=>setMode(m.id)}
+            style={{padding:"8px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${mode===m.id?C.borderHi:C.border}`,background:mode===m.id?C.greenDim:"transparent",color:mode===m.id?C.green:C.sub,transition:"all .15s"}}>
+            {m.l}
           </button>
         ))}
       </div>
-      {type==="offline"&&(
-        <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:14,lineHeight:1.6}}>
-          ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
-        </div>
+
+      {mode==="slot"&&(
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
+            {["platform","offline"].map(t=>(
+              <button key={t} onClick={()=>setType(t)}
+                style={{padding:"9px",borderRadius:8,fontSize:13,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${type===t?t==="platform"?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.2)":C.border}`,background:type===t?t==="platform"?C.greenDim:"rgba(255,255,255,0.03)":"transparent",color:type===t?t==="platform"?C.green:C.text:C.sub,transition:"all .15s"}}>
+                {t==="platform"?"⚡ Platform":"📋 Offline"}
+              </button>
+            ))}
+          </div>
+          {type==="offline"&&(
+            <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:14,lineHeight:1.6}}>
+              ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
+            </div>
+          )}
+          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ชื่อผู้จอง</div>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder={type==="platform"?"Platform จัดการเอง":"คุณบอย"} style={inp}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
+              <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา ฿</div>
+              <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="1500" style={{...inp,marginBottom:0}}/>
+            </div>
+          </div>
+          <div style={{marginTop:12,marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภทแมตช์</div>
+            <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+              <option style={{background:"#091510"}} value="7v7">7v7 · 14 คน</option>
+              <option style={{background:"#091510"}} value="5v5">5v5 · 10 คน</option>
+              <option style={{background:"#091510"}} value="6v6">6v6 · 12 คน</option>
+              <option style={{background:"#091510"}} value="9v9">9v9 · 18 คน</option>
+            </select>
+          </div>
+        </>
       )}
-      <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ชื่อผู้จอง</div>
-      <input value={name} onChange={e=>setName(e.target.value)} placeholder={type==="platform"?"Platform จัดการเอง":"คุณบอย"} style={inp}/>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <div>
-          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
-          <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
-        </div>
-        <div>
-          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา ฿</div>
-          <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="1500" style={{...inp,marginBottom:0}}/>
-        </div>
-      </div>
-      <div style={{marginTop:12,marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภทแมตช์</div>
-        <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0}}>
-          <option value="7v7">7v7 · 14 คน</option>
-          <option value="5v5">5v5 · 10 คน</option>
-          <option value="6v6">6v6 · 12 คน</option>
-          <option value="9v9">9v9 · 18 คน</option>
-        </select>
-      </div>
-      <button onClick={()=>onSave({type,name,time,price,matchType})}
-        style={{width:"100%",padding:13,borderRadius:10,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:14,fontWeight:900,cursor:"pointer",letterSpacing:.3}}>
+
+      {mode==="individual"&&(
+        <>
+          <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.greenBr,marginBottom:14,lineHeight:1.6}}>
+            ⚡ จองรายคนเพื่อเติม slot ที่ยังว่าง — ผู้เล่นได้ Stats + XP เหมือนปกติ
+          </div>
+          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ค้นหาผู้เล่น</div>
+          <input value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="พิมพ์ชื่อผู้เล่น..." style={inp}/>
+          {filtered.map(p=>(
+            <div key={p.id} onClick={()=>{if(!addedPlayers.find(a=>a.id===p.id))setAddedPlayers(prev=>[...prev,p]);setPlayerName("");}}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,marginBottom:6,cursor:"pointer"}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(139,92,246,0.2)",border:"1px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#8b5cf6",flexShrink:0}}>
+                {p.name[0]}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:800,color:C.text}}>{p.name}</div>
+                <div style={{fontSize:10,color:C.sub}}>{p.position} · {p.tier} · OVR {p.ovr}</div>
+              </div>
+              <span style={{fontSize:11,color:C.green}}>+ เพิ่ม</span>
+            </div>
+          ))}
+          {addedPlayers.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ผู้เล่นที่เพิ่ม ({addedPlayers.length})</div>
+              {addedPlayers.map(p=>(
+                <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,marginBottom:5}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:"rgba(139,92,246,0.2)",border:"1px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:"#8b5cf6",flexShrink:0}}>
+                    {p.name[0]}
+                  </div>
+                  <div style={{flex:1,fontSize:13,fontWeight:700,color:C.text}}>{p.name}</div>
+                  <button onClick={()=>setAddedPlayers(prev=>prev.filter(a=>a.id!==p.id))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13}}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <button onClick={()=>onSave({mode,type,name,time,price,matchType,players:addedPlayers})}
+        style={{width:"100%",padding:13,borderRadius:10,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:14,fontWeight:900,cursor:"pointer",letterSpacing:.3,marginTop:4}}>
         บันทึกการจอง →
       </button>
     </div>
@@ -632,6 +816,7 @@ export default function SquadPartner() {
     {id:"calendar",icon:"📅",label:"ตารางสนาม"},
     {id:"matchend",icon:"⏱️",label:"ยืนยันแมตช์จบ",badge:liveCount||null},
     {id:"booking",icon:"📋",label:"การจองทั้งหมด"},
+    {id:"shop",icon:"🛒",label:"ร้านค้าสนาม"},
     {id:"finance",icon:"💰",label:"รายได้ & กระเป๋า",ownerOnly:true},
   ];
 
@@ -663,7 +848,11 @@ export default function SquadPartner() {
         </nav>
         <div style={{padding:"10px 12px 8px",margin:"0 8px 8px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10}}>
           <div style={{fontSize:10,color:C.muted,fontWeight:700,marginBottom:2}}>เข้าสู่ระบบในฐานะ</div>
-          <div style={{fontSize:13,fontWeight:800,color:ownerUnlocked?C.amber:C.sub}}>{ownerUnlocked?"👑 เจ้าของ":"👤 Staff"}</div>
+          <div style={{fontSize:13,fontWeight:800,color:ownerUnlocked?C.amber:C.sub,marginBottom:8}}>{ownerUnlocked?"👑 เจ้าของ":"👤 Staff"}</div>
+          <div style={{borderTop:`1px solid rgba(255,255,255,0.06)`,paddingTop:8}}>
+            <div style={{fontSize:9,fontWeight:800,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>ยอดคงเหลือ</div>
+            <div style={{fontSize:16,fontWeight:900,color:C.green}}>฿{(venue?.wallet_balance||0).toLocaleString()}</div>
+          </div>
         </div>
         <div style={{padding:"12px 8px",borderTop:`1px solid ${C.border}`}}>
           <button onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:10,fontSize:13,fontWeight:700,color:C.muted,background:"none",border:"1px solid transparent",cursor:"pointer",width:"100%",textAlign:"left"}}>↩ ออกจากระบบ</button>
@@ -677,10 +866,6 @@ export default function SquadPartner() {
             <div style={{fontSize:12,color:C.sub,marginTop:1}}>{new Date().toLocaleDateString("th-TH",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:10,padding:"7px 16px",textAlign:"right"}}>
-              <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.2,textTransform:"uppercase"}}>ยอดคงเหลือ</div>
-              <div style={{fontSize:16,fontWeight:900,color:C.text}}>฿{(venue?.wallet_balance||0).toLocaleString()}</div>
-            </div>
             <button onClick={()=>setShowScanner(true)} style={{display:"flex",alignItems:"center",gap:7,padding:"9px 16px",borderRadius:10,background:`linear-gradient(135deg,#059669,${C.green})`,border:"none",color:"#001a0d",fontSize:14,fontWeight:900,cursor:"pointer"}}>🔲 Scan Player</button>
           </div>
         </header>
@@ -689,7 +874,7 @@ export default function SquadPartner() {
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:12,marginBottom:22}}>
             <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${liveCount} กำลัง live`} footColor={liveCount>0?C.green:C.sub} hi/>
             <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จากทุก slot"/>
-            <MetricCard icon="💰" value={`฿${todaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}`} label="รายได้วันนี้" foot="Platform only"/>
+            <MetricCard icon="💰" value={`฿${todaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}`} label="รายได้วันนี้" foot="รวมทุกช่องทาง"/>
             <MetricCard icon="📊" value={todaySlots.length>0?`${Math.round(todaySlots.filter(s=>s.status!=="available").length/todaySlots.length*100)}%`:"—"} label="Utilization" foot={`${venue?.field_count||1} สนาม`}/>
           </div>
 
@@ -723,6 +908,7 @@ export default function SquadPartner() {
             </div>
           )}
           {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")}/>}
+          {tab==="shop"&&<ShopTab ownerUnlocked={ownerUnlocked}/>}
           {tab==="finance"&&<FinanceTab venue={venue}/>}
           {tab==="booking"&&(
             <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24,maxWidth:600}}>
