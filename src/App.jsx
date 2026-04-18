@@ -695,12 +695,11 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
   const liveSlots=slots.filter(s=>s.status==="live");
 
   const mNavItems=[
-    {id:"scan",icon:"🔲",label:"Scan"},
-    {id:"schedule",icon:"📅",label:"ตาราง"},
-    {id:"matchend",icon:"⏱️",label:"จบแมตช์",badge:liveSlots.length||null},
-    {id:"booking",icon:"📋",label:"จอง"},
-    {id:"finance",icon:"💰",label:"รายได้",ownerOnly:true},
-  ];
+  {id:"scan",icon:"🔲",label:"Scan"},
+  {id:"schedule",icon:"📅",label:"ตาราง"},
+  {id:"matchend",icon:"⏱️",label:"จบแมตช์",badge:liveSlots.length||null},
+  {id:"finance",icon:"💰",label:"รายได้",ownerOnly:true},
+];
 
   const displaySlots = slots.length===0 ? MOCK_SLOTS : slots;
 
@@ -755,103 +754,96 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
         )}
 
         {/* ── SCHEDULE ── */}
-       {mTab==="schedule"&&(
+{mTab==="schedule"&&(
   <div>
     {/* Mini metrics */}
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
       <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"12px 14px"}}>
         <div style={{fontSize:20,fontWeight:900,color:C.greenBr,lineHeight:1}}>{liveSlots.length}</div>
-        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Live ตอนนี้</div>
+        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Live</div>
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
         <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.reduce((a,s)=>a+(s.players||0),0)}</div>
-        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>ผู้เล่นวันนี้</div>
+        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>ผู้เล่น</div>
+      </div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
+        <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.filter(s=>s.status!=="available").length}/{displaySlots.length}</div>
+        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Slot</div>
       </div>
     </div>
 
-    {/* Calendar Grid — horizontal scroll ถ้าหลายสนาม */}
-    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:14}}>
-      <div style={{minWidth: displaySlots.length>0 ? Math.max(...displaySlots.map(s=>s.field||1))*160+60 : 380}}>
-
-        {/* Header */}
-        <div style={{display:"grid",gridTemplateColumns:`52px repeat(${Math.max(...(displaySlots.map(s=>s.field||1)),3)},1fr)`,marginBottom:4}}>
+    {/* Calendar Grid */}
+    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
+      <div style={{minWidth:380}}>
+        <div style={{display:"grid",gridTemplateColumns:`52px repeat(3,1fr)`,marginBottom:4}}>
           <div/>
-          {Array.from({length:Math.max(...(displaySlots.map(s=>s.field||1)),3)}).map((_,i)=>(
-            <div key={i} style={{padding:"6px 8px",fontSize:10,fontWeight:800,letterSpacing:1,color:C.muted,textTransform:"uppercase",textAlign:"center"}}>
-              ⚽ สนาม {i+1}
-            </div>
+          {[1,2,3].map(i=>(
+            <div key={i} style={{padding:"6px 8px",fontSize:10,fontWeight:800,letterSpacing:1,color:C.muted,textTransform:"uppercase",textAlign:"center"}}>⚽ {i}</div>
           ))}
         </div>
-
-        {/* Rows */}
-        {TIMES.map(time=>{
-          const fieldCount = Math.max(...(displaySlots.map(s=>s.field||1)),3);
-          return(
-            <div key={time} style={{display:"grid",gridTemplateColumns:`52px repeat(${fieldCount},1fr)`,marginBottom:4,minHeight:64}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,color:C.muted,fontStyle:"italic",flexShrink:0}}>
-                {time}
-              </div>
-              {Array.from({length:fieldCount}).map((_,fi)=>{
-                const slot=displaySlots.find(s=>s.time===time&&s.field===fi+1);
-                return(
-                  <div key={fi} style={{padding:3}}>
-                    {slot?(
-                      <div style={{height:"100%",borderRadius:8,padding:"7px 8px",background:slot.status==="live"?"rgba(16,185,129,0.18)":slot.source==="platform"?"rgba(16,185,129,0.08)":slot.status==="full"?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${slot.status==="live"?"rgba(16,185,129,0.6)":slot.source==="platform"?"rgba(16,185,129,0.28)":slot.status==="full"?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.1)"}`,cursor:"pointer"}}
-                        onClick={()=>{if(slot.status==="live"){setActiveMatch(slot);setMTab("matchend");}}}>
-                        <div style={{fontSize:10,fontWeight:800,color:slot.status==="live"?C.greenBr:C.text,lineHeight:1.3,marginBottom:2}}>{slot.name||"—"}</div>
-                        <div style={{fontSize:8,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"}</div>
-                        {slot.total>0&&(
-                          <div style={{display:"flex",gap:2,marginTop:4,flexWrap:"wrap"}}>
-                            {Array.from({length:Math.min(slot.total,10)}).map((_,pi)=>(
-                              <div key={pi} style={{width:5,height:5,borderRadius:"50%",background:pi<(slot.players||0)?C.green:"rgba(255,255,255,0.15)"}}/>
-                            ))}
-                          </div>
-                        )}
-                        {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
-                      </div>
-                    ):(
-                      <div style={{height:"100%",borderRadius:8,border:`1px dashed rgba(255,255,255,0.07)`,display:"flex",alignItems:"center",justifyContent:"center",minHeight:58}}>
-                        <span style={{fontSize:10,color:C.muted}}>ว่าง</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
+        {TIMES.map(time=>(
+          <div key={time} style={{display:"grid",gridTemplateColumns:`52px repeat(3,1fr)`,marginBottom:4,minHeight:64}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,color:C.muted,fontStyle:"italic",flexShrink:0}}>{time}</div>
+            {[1,2,3].map(fi=>{
+              const slot=displaySlots.find(s=>s.time===time&&s.field===fi);
+              return(
+                <div key={fi} style={{padding:3}}>
+                  {slot?(
+                    <div onClick={()=>{if(slot.status==="live"){setActiveMatch(slot);setMTab("matchend");}}}
+                      style={{height:"100%",borderRadius:8,padding:"7px 8px",background:slot.status==="live"?"rgba(16,185,129,0.18)":slot.source==="platform"?"rgba(16,185,129,0.08)":slot.status==="full"?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${slot.status==="live"?"rgba(16,185,129,0.6)":slot.source==="platform"?"rgba(16,185,129,0.28)":slot.status==="full"?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.1)"}`,cursor:"pointer"}}>
+                      <div style={{fontSize:10,fontWeight:800,color:slot.status==="live"?C.greenBr:C.text,lineHeight:1.3,marginBottom:2}}>{slot.name||"—"}</div>
+                      <div style={{fontSize:8,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"}</div>
+                      {slot.total>0&&(
+                        <div style={{display:"flex",gap:2,marginTop:4,flexWrap:"wrap"}}>
+                          {Array.from({length:Math.min(slot.total,10)}).map((_,pi)=>(
+                            <div key={pi} style={{width:5,height:5,borderRadius:"50%",background:pi<(slot.players||0)?C.green:"rgba(255,255,255,0.15)"}}/>
+                          ))}
+                        </div>
+                      )}
+                      {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
+                    </div>
+                  ):(
+                    <div style={{height:"100%",borderRadius:8,border:`1px dashed rgba(255,255,255,0.07)`,display:"flex",alignItems:"center",justifyContent:"center",minHeight:58}}>
+                      <span style={{fontSize:10,color:C.muted}}>ว่าง</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
+
+    {/* Booking list ด้านล่าง */}
+    <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>รายการจองทั้งหมด</div>
+    <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+      <Tag color={C.green}>Platform {displaySlots.filter(s=>s.source==="platform").length}</Tag>
+      <Tag color={C.sub}>Offline {displaySlots.filter(s=>s.source==="offline").length}</Tag>
+      {liveSlots.length>0&&<Tag color={C.greenBr}>Live {liveSlots.length}</Tag>}
+    </div>
+    {displaySlots.map((s,i)=>(
+      <div key={s.id||i} style={{background:C.bg2,border:`1px solid ${s.status==="live"?C.borderHi:C.border}`,borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontSize:14,fontWeight:900,color:s.status==="live"?C.green:C.text}}>{s.time}</span>
+            <span style={{fontSize:10,color:C.muted}}>สนาม {s.field}</span>
+            {s.status==="live"&&<div style={{width:5,height:5,borderRadius:"50%",background:C.green}}/>}
+          </div>
+          <div style={{fontSize:11,color:C.sub,marginTop:2}}>{s.name||"ว่าง"} · {s.players||0}/{s.total||0} คน</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          {s.amount>0&&<div style={{fontSize:13,fontWeight:900,color:C.text,marginBottom:3}}>฿{s.amount.toLocaleString()}</div>}
+          <Tag color={s.source==="platform"?C.green:C.sub}>{s.source==="platform"?"Platform":"Offline"}</Tag>
+        </div>
+      </div>
+    ))}
   </div>
 )}
 
         {/* ── MATCH END ── */}
         {mTab==="matchend"&&(
           <MatchEndTab match={activeMatch} onDone={()=>setMTab("scan")}/>
-        )}
-
-        {/* ── BOOKING ── */}
-        {mTab==="booking"&&(
-          <div>
-            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>การจองทั้งหมดวันนี้</div>
-            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-              <Tag color={C.green}>Platform {displaySlots.filter(s=>s.source==="platform").length}</Tag>
-              <Tag color={C.sub}>Offline {displaySlots.filter(s=>s.source==="offline").length}</Tag>
-              <Tag color={C.greenBr}>Live {liveSlots.length}</Tag>
-            </div>
-            {displaySlots.map((s,i)=>(
-              <div key={s.id||i} style={{background:C.bg2,border:`1px solid ${s.status==="live"?C.borderHi:C.border}`,borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:14,fontWeight:900,color:s.status==="live"?C.green:C.text}}>{s.time} <span style={{fontSize:11,color:C.muted}}>สนาม {s.field}</span></div>
-                  <div style={{fontSize:11,color:C.sub,marginTop:2}}>{s.name||"ว่าง"} · {s.players||0}/{s.total||0} คน</div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  {s.amount>0&&<div style={{fontSize:13,fontWeight:900,color:C.text}}>฿{s.amount.toLocaleString()}</div>}
-                  <Tag color={s.source==="platform"?C.green:C.sub}>{s.source==="platform"?"Platform":"Offline"}</Tag>
-                </div>
-              </div>
-            ))}
-          </div>
         )}
 
         {/* ── FINANCE (owner only) ── */}
