@@ -685,12 +685,25 @@ const FinanceTab = ({venue}) => (
 );
 
 /* ═══ MOBILE ═══ */
-const MobileApp = ({venue,slots,onLogout}) => {
+const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
   const [mTab,setMTab]=useState("scan");
   const [showScanner,setShowScanner]=useState(false);
   const [scanId,setScanId]=useState(null);
   const [activeMatch,setActiveMatch]=useState(null);
+  const [showOwnerPin,setShowOwnerPin]=useState(false);
+  const [mOwner,setMOwner]=useState(ownerUnlocked||false);
   const liveSlots=slots.filter(s=>s.status==="live");
+
+  const mNavItems=[
+    {id:"scan",icon:"🔲",label:"Scan"},
+    {id:"schedule",icon:"📅",label:"ตาราง"},
+    {id:"matchend",icon:"⏱️",label:"จบแมตช์",badge:liveSlots.length||null},
+    {id:"booking",icon:"📋",label:"จอง"},
+    {id:"finance",icon:"💰",label:"รายได้",ownerOnly:true},
+  ];
+
+  const displaySlots = slots.length===0 ? MOCK_SLOTS : slots;
+
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',system-ui,sans-serif"}}>
       <header style={{padding:"12px 16px",background:"rgba(5,10,8,0.97)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:50}}>
@@ -703,7 +716,10 @@ const MobileApp = ({venue,slots,onLogout}) => {
           </div>
         </div>
       </header>
+
       <div style={{padding:"16px 16px 80px"}}>
+
+        {/* ── SCAN ── */}
         {mTab==="scan"&&(
           <div>
             <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
@@ -727,7 +743,7 @@ const MobileApp = ({venue,slots,onLogout}) => {
                       </div>
                       <Tag color={C.green}>LIVE</Tag>
                     </div>
-                    <button onClick={()=>setActiveMatch(s)}
+                    <button onClick={()=>{setActiveMatch(s);setMTab("matchend");}}
                       style={{width:"100%",padding:11,borderRadius:9,border:`1px solid rgba(251,191,36,0.4)`,background:`rgba(251,191,36,0.08)`,color:C.amber,fontSize:13,fontWeight:800,cursor:"pointer"}}>
                       ⏱ ยืนยันแมตช์จบ
                     </button>
@@ -737,40 +753,150 @@ const MobileApp = ({venue,slots,onLogout}) => {
             )}
           </div>
         )}
+
+        {/* ── SCHEDULE ── */}
         {mTab==="schedule"&&(
           <div>
-            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>ตารางวันนี้</div>
-            {slots.map((s,i)=>(
-              <div key={i} style={{background:C.bg2,border:`1px solid ${s.status==="live"?C.borderHi:C.border}`,borderRadius:12,padding:"13px 16px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:16,fontWeight:900,color:s.status==="live"?C.green:C.text}}>{s.time}</div>
-                  <div style={{fontSize:11,color:C.sub,marginTop:2}}>{s.name||"ว่าง"} · {s.players||0}/{s.total||14}</div>
+            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>
+              ตารางวันนี้
+            </div>
+            {/* Metrics mini */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+              <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:20,fontWeight:900,color:C.greenBr,lineHeight:1}}>{displaySlots.filter(s=>s.status!=="available"&&s.status!=="offline"||s.source==="platform").length}</div>
+                <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Platform slots</div>
+              </div>
+              <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.reduce((a,s)=>a+(s.players||0),0)}</div>
+                <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>ผู้เล่นวันนี้</div>
+              </div>
+            </div>
+            {displaySlots.map((s,i)=>(
+              <div key={s.id||i} style={{background:C.bg2,border:`1px solid ${s.status==="live"?C.borderHi:C.border}`,borderRadius:12,padding:"13px 16px",marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                      <span style={{fontSize:16,fontWeight:900,color:s.status==="live"?C.green:C.text}}>{s.time}</span>
+                      {s.status==="live"&&<div style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>}
+                    </div>
+                    <div style={{fontSize:12,color:C.sub}}>{s.name||"ว่าง"}</div>
+                    {s.total>0&&(
+                      <div style={{display:"flex",gap:2,marginTop:6,flexWrap:"wrap"}}>
+                        {Array.from({length:Math.min(s.total,14)}).map((_,pi)=>(
+                          <div key={pi} style={{width:7,height:7,borderRadius:"50%",background:pi<(s.players||0)?C.green:"rgba(255,255,255,0.1)"}}/>
+                        ))}
+                        <span style={{fontSize:10,color:C.sub,marginLeft:4}}>{s.players||0}/{s.total}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                    <Tag color={s.status==="live"?C.green:s.status==="full"?C.red:s.source==="platform"?C.greenBr:C.sub}>
+                      {s.status==="live"?"LIVE":s.status==="full"?"FULL":s.source==="platform"?"Platform":"Offline"}
+                    </Tag>
+                    {s.amount>0&&<div style={{fontSize:12,fontWeight:800,color:C.sub,marginTop:4}}>฿{s.amount.toLocaleString()}</div>}
+                  </div>
                 </div>
-                <Tag color={s.status==="live"?C.green:s.status==="filling"?C.amber:C.sub}>
-                  {s.status==="live"?"LIVE":s.status==="filling"?"กำลังเติม":"ว่าง"}
-                </Tag>
+                {s.status==="live"&&(
+                  <button onClick={()=>{setActiveMatch(s);setMTab("matchend");}}
+                    style={{width:"100%",marginTop:10,padding:"8px",borderRadius:8,border:`1px solid rgba(251,191,36,0.4)`,background:`rgba(251,191,36,0.08)`,color:C.amber,fontSize:12,fontWeight:800,cursor:"pointer"}}>
+                    ⏱ ยืนยันแมตช์จบ
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
-        {activeMatch&&<MatchEndTab match={activeMatch} onDone={()=>setActiveMatch(null)}/>}
+
+        {/* ── MATCH END ── */}
+        {mTab==="matchend"&&(
+          <MatchEndTab match={activeMatch} onDone={()=>setMTab("scan")}/>
+        )}
+
+        {/* ── BOOKING ── */}
+        {mTab==="booking"&&(
+          <div>
+            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>การจองทั้งหมดวันนี้</div>
+            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+              <Tag color={C.green}>Platform {displaySlots.filter(s=>s.source==="platform").length}</Tag>
+              <Tag color={C.sub}>Offline {displaySlots.filter(s=>s.source==="offline").length}</Tag>
+              <Tag color={C.greenBr}>Live {liveSlots.length}</Tag>
+            </div>
+            {displaySlots.map((s,i)=>(
+              <div key={s.id||i} style={{background:C.bg2,border:`1px solid ${s.status==="live"?C.borderHi:C.border}`,borderRadius:12,padding:"12px 14px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:14,fontWeight:900,color:s.status==="live"?C.green:C.text}}>{s.time} <span style={{fontSize:11,color:C.muted}}>สนาม {s.field}</span></div>
+                  <div style={{fontSize:11,color:C.sub,marginTop:2}}>{s.name||"ว่าง"} · {s.players||0}/{s.total||0} คน</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  {s.amount>0&&<div style={{fontSize:13,fontWeight:900,color:C.text}}>฿{s.amount.toLocaleString()}</div>}
+                  <Tag color={s.source==="platform"?C.green:C.sub}>{s.source==="platform"?"Platform":"Offline"}</Tag>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── FINANCE (owner only) ── */}
+        {mTab==="finance"&&(
+          mOwner ? (
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.amber,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>👑 รายได้ & กระเป๋า</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,padding:"16px 14px"}}>
+                  <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>ยอดคงเหลือ</div>
+                  <div style={{fontSize:22,fontWeight:900,color:C.green}}>฿{(venue?.wallet_balance||0).toLocaleString()}</div>
+                  <div style={{fontSize:11,color:C.sub,marginTop:4}}>พร้อมถอน</div>
+                </div>
+                <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 14px"}}>
+                  <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Commission rate</div>
+                  <div style={{fontSize:22,fontWeight:900,color:C.amber}}>5%</div>
+                  <div style={{fontSize:11,color:C.sub,marginTop:4}}>Founding Partner</div>
+                </div>
+              </div>
+              <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 14px",marginBottom:12}}>
+                <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>รายได้วันนี้</div>
+                <div style={{fontSize:26,fontWeight:900,color:C.text,marginBottom:4}}>฿{displaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}</div>
+                <div style={{fontSize:11,color:C.sub}}>รวมทุกช่องทาง</div>
+              </div>
+              <Btn ghost onClick={handleLogout} style={{width:"100%",fontSize:13}}>↩ ออกจากระบบ</Btn>
+            </div>
+          ) : (
+            <div style={{textAlign:"center",paddingTop:40}}>
+              <div style={{fontSize:36,marginBottom:16}}>🔒</div>
+              <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:8}}>Owner Access</div>
+              <div style={{fontSize:13,color:C.sub,marginBottom:24}}>ใส่ PIN เพื่อดูข้อมูลการเงิน</div>
+              <Btn onClick={()=>setShowOwnerPin(true)} style={{width:"100%",maxWidth:280,margin:"0 auto"}}>ใส่ Owner PIN</Btn>
+            </div>
+          )
+        )}
+
       </div>
-      <nav style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(5,10,8,0.97)",backdropFilter:"blur(24px)",borderTop:`1px solid ${C.border}`,padding:"10px 0 20px",display:"flex",justifyContent:"space-around"}}>
-        {[{id:"scan",icon:"🔲",label:"Scan"},{id:"schedule",icon:"📅",label:"ตาราง"}].map(n=>(
-          <button key={n.id} onClick={()=>setMTab(n.id)}
-            style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:"none",border:"none",cursor:"pointer",padding:"4px 20px"}}>
-            <span style={{fontSize:20}}>{n.icon}</span>
-            <span style={{fontSize:9,fontWeight:800,letterSpacing:1,textTransform:"uppercase",color:mTab===n.id?C.green:C.sub}}>{n.label}</span>
-          </button>
-        ))}
+
+      {/* Bottom Nav */}
+      <nav style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(5,10,8,0.97)",backdropFilter:"blur(24px)",borderTop:`1px solid ${C.border}`,padding:"8px 0 18px",display:"flex",justifyContent:"space-around"}}>
+        {mNavItems.map(n=>{
+          const locked=n.ownerOnly&&!mOwner;
+          return(
+            <button key={n.id} onClick={()=>{if(locked){setShowOwnerPin(true);return;}setMTab(n.id);}}
+              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",position:"relative"}}>
+              <span style={{fontSize:18}}>{n.icon}</span>
+              <span style={{fontSize:8,fontWeight:800,letterSpacing:.5,textTransform:"uppercase",color:mTab===n.id?C.green:locked?C.muted:C.sub}}>{n.label}</span>
+              {n.badge>0&&(
+                <div style={{position:"absolute",top:0,right:4,width:14,height:14,borderRadius:"50%",background:C.amber,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:900,color:"#000"}}>{n.badge}</div>
+              )}
+              {locked&&<span style={{fontSize:8,color:C.muted}}>🔒</span>}
+            </button>
+          );
+        })}
       </nav>
+
+      {showOwnerPin&&<OwnerPin onSuccess={()=>{setMOwner(true);setShowOwnerPin(false);setMTab("finance");}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);setScanId(id);}} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
     </div>
   );
 };
-
 /* ═══ MAIN ═══ */
 export default function SquadPartner() {
   const [unlocked,setUnlocked]=useState(false);
@@ -826,7 +952,7 @@ export default function SquadPartner() {
   const navNext=()=>{const d=new Date(calDate);calView==="day"?d.setDate(d.getDate()+1):calView==="week"?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);setCalDate(d);};
 
   if(!unlocked)return<VenueLogin onSuccess={v=>{setVenue(v);setUnlocked(true);}}/>;
-  if(isMobile)return<MobileApp venue={venue} slots={todaySlots} onLogout={handleLogout}/>;
+  if(isMobile)return<MobileApp venue={venue} slots={todaySlots} ownerUnlocked={ownerUnlocked} onLogout={handleLogout}/>;
 
   const navItems=[
     {id:"calendar",icon:"📅",label:"ตารางสนาม"},
