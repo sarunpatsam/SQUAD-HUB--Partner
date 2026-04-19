@@ -904,7 +904,6 @@ const MatchEndTab = ({match,onDone,slots}) => {
   const [sent,setSent]=useState(false);
   const [loading,setLoading]=useState(false);
   const liveSlots = slots?.filter(s=>s.status==="live")||[];
-  const endedToday = slots?.filter(s=>s.status==="ended"||s.status==="offline")||[];
   const confirm = async () => {
     setLoading(true);
     try { await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({match_id:match?.id||1,venue_id:match?.venue_id||1})}); }
@@ -920,35 +919,14 @@ const MatchEndTab = ({match,onDone,slots}) => {
     </div>
   );
   return(
-    <div style={{maxWidth:600}}>
-      {/* Match dashboard */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:22}}>
-        <div style={{background:"rgba(16,185,129,0.08)",border:`1px solid ${C.borderHi}`,borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:20,marginBottom:6}}>⏱️</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.greenBr,lineHeight:1}}>{liveSlots.length}</div>
-          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>กำลัง Live</div>
-          <div style={{fontSize:11,color:C.green,marginTop:3,fontWeight:700}}>รอยืนยันจบ</div>
-        </div>
-        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:20,marginBottom:6}}>✅</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{endedToday.length}</div>
-          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>จบแล้ววันนี้</div>
-          <div style={{fontSize:11,color:C.sub,marginTop:3,fontWeight:700}}>Stats บันทึกแล้ว</div>
-        </div>
-        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:20,marginBottom:6}}>👥</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{liveSlots.reduce((a,s)=>a+(s.players||0),0)}</div>
-          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>ผู้เล่น Live</div>
-          <div style={{fontSize:11,color:C.sub,marginTop:3,fontWeight:700}}>รอรับ XP + Stats</div>
-        </div>
-      </div>
-
+    <div style={{maxWidth:500}}>
       {/* Live matches list */}
       {liveSlots.length>0&&(
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>แมตช์ที่กำลัง Live</div>
+          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>แมตช์ที่กำลัง Live — เลือกเพื่อยืนยัน</div>
           {liveSlots.map((s,i)=>(
-            <div key={i} style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+            <div key={i} style={{background:C.bg2,border:`1px solid ${match?.id===s.id?C.borderHi:C.border}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}
+              onClick={()=>{}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:C.green,flexShrink:0}}/>
               <div style={{flex:1}}>
                 <div style={{fontSize:14,fontWeight:800,color:C.green}}>{s.name||`MATCH ${i+1}`}</div>
@@ -965,8 +943,6 @@ const MatchEndTab = ({match,onDone,slots}) => {
           <div style={{fontSize:14,color:C.sub}}>ไม่มีแมตช์ที่กำลัง Live ตอนนี้</div>
         </div>
       )}
-
-      {/* Confirm panel */}
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
         <div style={{fontSize:11,fontWeight:800,color:C.green,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>ยืนยันแมตช์จบ</div>
         <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:6}}>{match?.name||"เลือก Match จาก calendar"}</div>
@@ -1340,7 +1316,7 @@ export default function SquadPartner() {
           </div>
         </header>
 
-        <main style={{padding:26}}>
+        <main style={{padding:26,background:C.bg,minHeight:"calc(100vh - 56px)"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:12,marginBottom:22}}>
             <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${liveCount} กำลัง live`} footColor={liveCount>0?C.green:C.sub} hi/>
             <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จากทุก slot"/>
