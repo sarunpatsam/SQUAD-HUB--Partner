@@ -772,51 +772,50 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
       )}
 
       {/* ── MANAGE MODE ── */}
-      {mode==="manage"&&selected?.slot&&(
-        <>
-          <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:"10px 12px",marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:800,color:C.green,marginBottom:4}}>แก้ไขได้ทันที</div>
-            <div style={{fontSize:11,color:C.sub,lineHeight:1.7}}>
-              ⚠ ราคาที่แก้จะใช้กับคนจองใหม่เท่านั้น<br/>คนที่จองแล้วได้ราคาเดิม (Price lock)
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
-              <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
-            </div>
-            <div>
-              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา/คน ฿</div>
-              <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="150" style={{...inp,marginBottom:0}}/>
-            </div>
-          </div>
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
-            <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-             <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-  <optgroup label="7v7" style={{background:"#091510",color:"#6b9e85"}}>
-    <option style={{background:"#091510"}} value="7v7_3t">7v7 · 3 ทีม · 21 คน</option>
-    <option style={{background:"#091510"}} value="7v7_4t">7v7 · 4 ทีม · 28 คน</option>
-  </optgroup>
-  <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
-    <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
-  </optgroup>
-  <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
-    <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
-    <option style={{background:"#091510"}} value="5v5_3t">5v5 · 3 ทีม · 15 คน</option>
-  </optgroup>
-</select>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            <Btn ghost onClick={()=>setConfirm(true)} style={{width:"100%",color:C.red,borderColor:"rgba(239,68,68,0.3)"}}>
-              🗑 ยกเลิก slot
-            </Btn>
-            <Btn onClick={handleEdit} disabled={loading} style={{width:"100%"}}>
-              {loading?"กำลังบันทึก...":"บันทึก ✓"}
-            </Btn>
-          </div>
-        </>
-      )}
+{mode==="manage"&&selected?.slot&&(
+  <>
+    <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:"10px 12px",marginBottom:14}}>
+      <div style={{fontSize:11,fontWeight:800,color:C.green,marginBottom:4}}>แก้ไขได้ทันที</div>
+      <div style={{fontSize:11,color:C.sub,lineHeight:1.7}}>
+        ⚠ ราคาที่แก้จะใช้กับคนจองใหม่เท่านั้น<br/>คนที่จองแล้วได้ราคาเดิม (Price lock)
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+      <div>
+        <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
+        <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
+      </div>
+      <div>
+        <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา/คน ฿</div>
+        <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="150" style={{...inp,marginBottom:0}}/>
+      </div>
+    </div>
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
+      <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+        <optgroup label="7v7" style={{background:"#091510",color:"#6b9e85"}}>
+          <option style={{background:"#091510"}} value="7v7_3t">7v7 · 3 ทีม · 21 คน</option>
+          <option style={{background:"#091510"}} value="7v7_4t">7v7 · 4 ทีม · 28 คน</option>
+        </optgroup>
+        <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
+          <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
+        </optgroup>
+        <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
+          <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
+          <option style={{background:"#091510"}} value="5v5_3t">5v5 · 3 ทีม · 15 คน</option>
+        </optgroup>
+      </select>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      <Btn ghost onClick={()=>setConfirm(true)} style={{width:"100%",color:C.red,borderColor:"rgba(239,68,68,0.3)"}}>
+        🗑 ยกเลิก slot
+      </Btn>
+      <Btn onClick={handleEdit} disabled={loading} style={{width:"100%"}}>
+        {loading?"กำลังบันทึก...":"บันทึก ✓"}
+      </Btn>
+    </div>
+  </>
+)}
 
       {/* ── BLOCK MODE ── */}
       {mode==="block"&&(
