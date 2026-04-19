@@ -1351,14 +1351,7 @@ export default function SquadPartner() {
           {tab==="calendar"&&(
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <div style={{display:"flex",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
-                  {["day","week","month"].map(v=>(
-                    <button key={v} onClick={()=>setCalView(v)}
-                      style={{padding:"8px 18px",fontSize:13,fontWeight:800,border:"none",cursor:"pointer",letterSpacing:.5,background:calView===v?"rgba(16,185,129,0.15)":"transparent",color:calView===v?C.green:C.sub,transition:"all .15s"}}>
-                      {{day:"Day",week:"Week",month:"Month"}[v]}
-                    </button>
-                  ))}
-                </div>
+                <div style={{fontSize:14,fontWeight:900,color:C.text}}>📅 ตารางรายวัน</div>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <button onClick={navPrev} style={{width:32,height:32,borderRadius:7,background:C.bg2,border:`1px solid ${C.border}`,color:C.sub,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
                   <div style={{fontSize:14,fontWeight:800,color:C.text,minWidth:200,textAlign:"center"}}>{navDate()}</div>
@@ -1370,8 +1363,6 @@ export default function SquadPartner() {
               <div style={{display:"grid",gridTemplateColumns:calView==="day"?"1fr 340px":"1fr",gap:16}}>
                 <div>
                   {calView==="day"&&<DayView fields={fields} slots={todaySlots} date={calDate} onSelectSlot={setSelectedSlot}/>}
-                  {calView==="week"&&<WeekView slots={slots} weekStart={weekStart} onSelectSlot={setSelectedSlot}/>}
-                  {calView==="month"&&<MonthView slots={slots} monthDate={calDate} onSelectDay={d=>{setCalDate(d);setCalView("day");}}/>}
                 </div>
                 {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={()=>window.location.reload()}/>}
               </div>
