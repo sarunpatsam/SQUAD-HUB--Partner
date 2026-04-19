@@ -527,37 +527,200 @@ const MOCK_PLAYERS = [
   {id:5,name:"โจ้",position:"DF",tier:"Gold",ovr:76},
   {id:6,name:"Sarun Jr.",position:"MF",tier:"Bronze",ovr:71},
 ];
-const BookingPanel = ({selected,onSave}) => {
-  const [mode,setMode]=useState("slot"); // slot | individual
+
+const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
+  const [mode,setMode]=useState("create"); // create | manage | block
   const [type,setType]=useState("platform");
   const [name,setName]=useState("");
   const [time,setTime]=useState(selected?.time||"18:00");
+  const [endTime,setEndTime]=useState("20:00");
   const [price,setPrice]=useState("1500");
   const [matchType,setMatchType]=useState("7v7");
   const [playerName,setPlayerName]=useState("");
   const [addedPlayers,setAddedPlayers]=useState([]);
+  const [blockReason,setBlockReason]=useState("");
+  const [blockType,setBlockType]=useState("slot"); // slot | day
+  const [loading,setLoading]=useState(false);
+  const [done,setDone]=useState(null); // null | "success" | "error"
+  const [confirm,setConfirm]=useState(false);
+
   const inp={width:"100%",background:"#091510",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:12};
   const filtered=playerName.trim().length>0?MOCK_PLAYERS.filter(p=>p.name.includes(playerName.trim())):[];
-  return(
-    <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:20,position:"sticky",top:20}}>
-      <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:3}}>+ สร้างการจอง</div>
-      <div style={{fontSize:12,color:C.sub,marginBottom:14}}>{selected?`${selected.field} · ${selected.time}`:"เลือก slot จาก calendar"}</div>
-      {/* Mode toggle */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:16}}>
-        {[{id:"slot",l:"📋 เหมาสนาม"},{id:"individual",l:"👤 รายคน"}].map(m=>(
-          <button key={m.id} onClick={()=>setMode(m.id)}
-            style={{padding:"8px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${mode===m.id?C.borderHi:C.border}`,background:mode===m.id?C.greenDim:"transparent",color:mode===m.id?C.green:C.sub,transition:"all .15s"}}>
+
+  const maxPlayers = {
+    "7v7":14,"5v5":10,"6v6":12,"9v9":18
+  };
+
+  // สร้าง slot ใหม่
+  const handleCreate = async () => {
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const {error} = await supabase.from("slots").insert({
+        venue_id: venueId,
+        date: today,
+        start_time: time+":00",
+        end_time: endTime+":00",
+        price_per_player: parseInt(price)||0,
+        max_players: maxPlayers[matchType]||14,
+        match_type: matchType,
+        status: type==="platform"?"open":"offline",
+        field_number: selected?.field||1,
+      });
+      if(error) throw error;
+      setDone("success");
+      onRefresh?.();
+    } catch(e) {
+      console.error(e);
+      setDone("error");
+    }
+    setLoading(false);
+  };
+
+  // แก้ไข slot
+  const handleEdit = async () => {
+    if(!selected?.slot?.id) return;
+    setLoading(true);
+    try {
+      const {error} = await supabase.from("slots").update({
+        start_time: time+":00",
+        price_per_player: parseInt(price)||0,
+        max_players: maxPlayers[matchType]||14,
+        match_type: matchType,
+      }).eq("id", selected.slot.id);
+      if(error) throw error;
+      setDone("success");
+      onRefresh?.();
+    } catch(e) {
+      setDone("error");
+    }
+    setLoading(false);
+  };
+
+  // บล็อก slot / ทั้งวัน
+  const handleBlock = async () => {
+    setLoading(true);
+    try {
+      if(blockType==="slot"&&selected?.slot?.id) {
+        const {error} = await supabase.from("slots").update({
+          status:"blocked",
+          block_reason: blockReason||"ปิดชั่วคราว",
+        }).eq("id", selected.slot.id);
+        if(error) throw error;
+      } else {
+        // ปิดทั้งวัน — update ทุก slot ของ venue วันนี้
+        const today = new Date().toISOString().split("T")[0];
+        const {error} = await supabase.from("slots").update({
+          status:"blocked",
+          block_reason: blockReason||"ปิดสนามชั่วคราว",
+        }).eq("venue_id", venueId).eq("date", today).eq("status","open");
+        if(error) throw error;
+      }
+      setDone("success");
+      onRefresh?.();
+    } catch(e) {
+      setDone("error");
+    }
+    setLoading(false);
+    setConfirm(false);
+  };
+
+  // ยกเลิก slot
+  const handleCancel = async () => {
+    if(!selected?.slot?.id) return;
+    setLoading(true);
+    try {
+      const {error} = await supabase.from("slots").update({
+        status:"cancelled",
+        block_reason: blockReason||"ยกเลิก slot",
+      }).eq("id", selected.slot.id);
+      if(error) throw error;
+      setDone("success");
+      onRefresh?.();
+    } catch(e) {
+      setDone("error");
+    }
+    setLoading(false);
+    setConfirm(false);
+  };
+
+  // Success / Error state
+  if(done) return (
+    <div style={{background:C.bg2,border:`1px solid ${done==="success"?C.borderHi:"rgba(239,68,68,0.3)"}`,borderRadius:16,padding:20,position:"sticky",top:20,textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:12}}>{done==="success"?"✅":"❌"}</div>
+      <div style={{fontSize:15,fontWeight:900,color:done==="success"?C.green:C.red,marginBottom:8}}>
+        {done==="success"?"บันทึกสำเร็จ!":"เกิดข้อผิดพลาด"}
+      </div>
+      <div style={{fontSize:12,color:C.sub,marginBottom:20}}>
+        {done==="success"?"ข้อมูลอัพเดตใน User App แล้ว":"ลองใหม่อีกครั้ง"}
+      </div>
+      <Btn ghost onClick={()=>{setDone(null);setConfirm(false);}} style={{width:"100%"}}>
+        {done==="success"?"จัดการ slot อื่น":"ลองใหม่"}
+      </Btn>
+    </div>
+  );
+
+  // Confirm dialog
+  if(confirm) return (
+    <div style={{background:C.bg2,border:`1px solid rgba(239,68,68,0.35)`,borderRadius:16,padding:20,position:"sticky",top:20}}>
+      <div style={{fontSize:14,fontWeight:900,color:C.red,marginBottom:8}}>
+        ⚠ ยืนยันการ{mode==="block"?"บล็อก":"ยกเลิก"} slot
+      </div>
+      <div style={{fontSize:12,color:C.sub,marginBottom:6,lineHeight:1.7}}>
+        {mode==="block"&&blockType==="day"
+          ?"ต้องการปิดสนามทั้งวันใช่ไหม? slot ที่มีคนจองแล้วจะได้รับ LINE notify อัตโนมัติ"
+          :"ต้องการบล็อก/ยกเลิก slot นี้ใช่ไหม? ถ้ามีคนจองแล้วจะได้รับ LINE notify อัตโนมัติ"
+        }
+      </div>
+      <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:16,lineHeight:1.6}}>
+        📱 LINE notify จะถูกส่งให้ผู้เล่นที่จองแล้วทุกคนอัตโนมัติ
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <Btn ghost onClick={()=>setConfirm(false)} style={{width:"100%"}}>ยกเลิก</Btn>
+        <button onClick={mode==="block"?handleBlock:handleCancel} disabled={loading}
+          style={{padding:"11px",borderRadius:8,border:`1px solid rgba(239,68,68,0.4)`,background:`rgba(239,68,68,0.1)`,color:C.red,fontSize:14,fontWeight:800,cursor:"pointer"}}>
+          {loading?"กำลังดำเนินการ...":"ยืนยัน"}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:20,position:"sticky",top:20,maxHeight:"80vh",overflowY:"auto"}}>
+
+      {/* Header */}
+      <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:3}}>
+        {mode==="create"?"+ สร้าง slot ใหม่":mode==="manage"?"✏️ แก้ไข slot":"🚫 บล็อก slot"}
+      </div>
+      <div style={{fontSize:12,color:C.sub,marginBottom:14}}>
+        {selected?.slot
+          ? `${selected.field} · ${selected.time} · ${selected.slot.name||"ว่าง"}`
+          : selected
+          ? `${selected.field} · ${selected.time}`
+          : "เลือก slot จาก calendar"}
+      </div>
+
+      {/* Mode tabs */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5,marginBottom:16}}>
+        {[
+          {id:"create",l:"➕ สร้าง"},
+          {id:"manage",l:"✏️ แก้ไข",disabled:!selected?.slot},
+          {id:"block",l:"🚫 บล็อก",disabled:!selected?.slot},
+        ].map(m=>(
+          <button key={m.id} onClick={()=>!m.disabled&&setMode(m.id)}
+            style={{padding:"7px 4px",borderRadius:8,fontSize:11,fontWeight:800,cursor:m.disabled?"not-allowed":"pointer",textAlign:"center",border:`1px solid ${mode===m.id?C.borderHi:C.border}`,background:mode===m.id?C.greenDim:"transparent",color:mode===m.id?C.green:m.disabled?C.muted:C.sub,opacity:m.disabled?.4:1,transition:"all .15s"}}>
             {m.l}
           </button>
         ))}
       </div>
 
-      {mode==="slot"&&(
+      {/* ── CREATE MODE ── */}
+      {mode==="create"&&(
         <>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
             {["platform","offline"].map(t=>(
               <button key={t} onClick={()=>setType(t)}
-                style={{padding:"9px",borderRadius:8,fontSize:13,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${type===t?t==="platform"?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.2)":C.border}`,background:type===t?t==="platform"?C.greenDim:"rgba(255,255,255,0.03)":"transparent",color:type===t?t==="platform"?C.green:C.text:C.sub,transition:"all .15s"}}>
+                style={{padding:"9px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${type===t?t==="platform"?"rgba(16,185,129,0.5)":"rgba(255,255,255,0.2)":C.border}`,background:type===t?t==="platform"?C.greenDim:"rgba(255,255,255,0.03)":"transparent",color:type===t?t==="platform"?C.green:C.text:C.sub,transition:"all .15s"}}>
                 {t==="platform"?"⚡ Platform":"📋 Offline"}
               </button>
             ))}
@@ -567,20 +730,66 @@ const BookingPanel = ({selected,onSave}) => {
               ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
             </div>
           )}
-          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ชื่อผู้จอง</div>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder={type==="platform"?"Platform จัดการเอง":"คุณบอย"} style={inp}/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
               <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
             </div>
             <div>
-              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา ฿</div>
-              <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="1500" style={{...inp,marginBottom:0}}/>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาสิ้นสุด</div>
+              <input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)} style={{...inp,marginBottom:0}}/>
             </div>
           </div>
-          <div style={{marginTop:12,marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภทแมตช์</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา/คน ฿</div>
+              <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="150" style={{...inp,marginBottom:0}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
+              <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+                <option style={{background:"#091510"}} value="7v7">7v7 · 14 คน</option>
+                <option style={{background:"#091510"}} value="5v5">5v5 · 10 คน</option>
+                <option style={{background:"#091510"}} value="6v6">6v6 · 12 คน</option>
+                <option style={{background:"#091510"}} value="9v9">9v9 · 18 คน</option>
+              </select>
+            </div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>สนามที่</div>
+            <select style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+              {[1,2,3].map(n=>(
+                <option key={n} style={{background:"#091510"}} value={n}>สนาม {n}</option>
+              ))}
+            </select>
+          </div>
+          <Btn onClick={handleCreate} disabled={loading} style={{width:"100%",padding:13}}>
+            {loading?"กำลังสร้าง...":"สร้าง slot → ผู้เล่นเห็นทันที"}
+          </Btn>
+        </>
+      )}
+
+      {/* ── MANAGE MODE ── */}
+      {mode==="manage"&&selected?.slot&&(
+        <>
+          <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:"10px 12px",marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:800,color:C.green,marginBottom:4}}>แก้ไขได้ทันที</div>
+            <div style={{fontSize:11,color:C.sub,lineHeight:1.7}}>
+              ⚠ ราคาที่แก้จะใช้กับคนจองใหม่เท่านั้น<br/>คนที่จองแล้วได้ราคาเดิม (Price lock)
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
+              <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา/คน ฿</div>
+              <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="150" style={{...inp,marginBottom:0}}/>
+            </div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
             <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
               <option style={{background:"#091510"}} value="7v7">7v7 · 14 คน</option>
               <option style={{background:"#091510"}} value="5v5">5v5 · 10 คน</option>
@@ -588,50 +797,49 @@ const BookingPanel = ({selected,onSave}) => {
               <option style={{background:"#091510"}} value="9v9">9v9 · 18 คน</option>
             </select>
           </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <Btn ghost onClick={()=>setConfirm(true)} style={{width:"100%",color:C.red,borderColor:"rgba(239,68,68,0.3)"}}>
+              🗑 ยกเลิก slot
+            </Btn>
+            <Btn onClick={handleEdit} disabled={loading} style={{width:"100%"}}>
+              {loading?"กำลังบันทึก...":"บันทึก ✓"}
+            </Btn>
+          </div>
         </>
       )}
 
-      {mode==="individual"&&(
+      {/* ── BLOCK MODE ── */}
+      {mode==="block"&&(
         <>
-          <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.greenBr,marginBottom:14,lineHeight:1.6}}>
-            ⚡ จองรายคนเพื่อเติม slot ที่ยังว่าง — ผู้เล่นได้ Stats + XP เหมือนปกติ
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
+            {[{id:"slot",l:"🚫 ทีละ slot"},{id:"day",l:"🔒 ทั้งวัน"}].map(b=>(
+              <button key={b.id} onClick={()=>setBlockType(b.id)}
+                style={{padding:"9px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",textAlign:"center",border:`1px solid ${blockType===b.id?"rgba(239,68,68,0.5)":C.border}`,background:blockType===b.id?"rgba(239,68,68,0.08)":"transparent",color:blockType===b.id?C.red:C.sub,transition:"all .15s"}}>
+                {b.l}
+              </button>
+            ))}
           </div>
-          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ค้นหาผู้เล่น</div>
-          <input value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="พิมพ์ชื่อผู้เล่น..." style={inp}/>
-          {filtered.map(p=>(
-            <div key={p.id} onClick={()=>{if(!addedPlayers.find(a=>a.id===p.id))setAddedPlayers(prev=>[...prev,p]);setPlayerName("");}}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,marginBottom:6,cursor:"pointer"}}>
-              <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(139,92,246,0.2)",border:"1px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#8b5cf6",flexShrink:0}}>
-                {p.name[0]}
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:800,color:C.text}}>{p.name}</div>
-                <div style={{fontSize:10,color:C.sub}}>{p.position} · {p.tier} · OVR {p.ovr}</div>
-              </div>
-              <span style={{fontSize:11,color:C.green}}>+ เพิ่ม</span>
-            </div>
-          ))}
-          {addedPlayers.length>0&&(
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ผู้เล่นที่เพิ่ม ({addedPlayers.length})</div>
-              {addedPlayers.map(p=>(
-                <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:8,marginBottom:5}}>
-                  <div style={{width:24,height:24,borderRadius:"50%",background:"rgba(139,92,246,0.2)",border:"1px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:"#8b5cf6",flexShrink:0}}>
-                    {p.name[0]}
-                  </div>
-                  <div style={{flex:1,fontSize:13,fontWeight:700,color:C.text}}>{p.name}</div>
-                  <button onClick={()=>setAddedPlayers(prev=>prev.filter(a=>a.id!==p.id))} style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13}}>✕</button>
-                </div>
-              ))}
+          {blockType==="day"&&(
+            <div style={{background:"rgba(239,68,68,0.06)",border:`1px solid rgba(239,68,68,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.red,marginBottom:14,lineHeight:1.6}}>
+              ⚠ จะบล็อก slot ที่ยังว่างทั้งหมดในวันนี้ slot ที่มีคนจองแล้วจะไม่ถูกกระทบ
             </div>
           )}
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เหตุผล (optional)</div>
+            <input value={blockReason} onChange={e=>setBlockReason(e.target.value)}
+              placeholder="เช่น สนามซ่อมบำรุง, ฝนตก..."
+              style={{...inp,marginBottom:0}}/>
+          </div>
+          <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:16,lineHeight:1.6}}>
+            📱 LINE notify จะส่งให้ผู้เล่นที่จองไว้แล้วอัตโนมัติ
+          </div>
+          <button onClick={()=>setConfirm(true)}
+            style={{width:"100%",padding:13,borderRadius:10,border:`1px solid rgba(239,68,68,0.4)`,background:`rgba(239,68,68,0.08)`,color:C.red,fontSize:14,fontWeight:900,cursor:"pointer"}}>
+            🚫 {blockType==="day"?"ปิดสนามทั้งวัน":"บล็อก slot นี้"}
+          </button>
         </>
       )}
 
-      <button onClick={()=>onSave({mode,type,name,time,price,matchType,players:addedPlayers})}
-        style={{width:"100%",padding:13,borderRadius:10,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:14,fontWeight:900,cursor:"pointer",letterSpacing:.3,marginTop:4}}>
-        บันทึกการจอง →
-      </button>
     </div>
   );
 };
@@ -1055,7 +1263,7 @@ export default function SquadPartner() {
                   {calView==="week"&&<WeekView slots={slots} weekStart={weekStart} onSelectSlot={setSelectedSlot}/>}
                   {calView==="month"&&<MonthView slots={slots} monthDate={calDate} onSelectDay={d=>{setCalDate(d);setCalView("day");}}/>}
                 </div>
-                <BookingPanel selected={selectedSlot} onSave={data=>console.log("save",data)}/>
+                <BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={()=>window.location.reload()}/>
               </div>
             </div>
           )}
