@@ -1329,7 +1329,7 @@ export default function SquadPartner() {
         </div>
       </aside>
 
-      <div style={{marginLeft:220,flex:1,display:"flex",flexDirection:"column"}}>
+      <div style={{marginLeft:220,flex:1,display:"flex",flexDirection:"column",background:"#050f0a"}}>
         <header style={{position:"sticky",top:0,height:56,background:"rgba(5,10,8,0.96)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 26px",zIndex:90}}>
           <div>
             <div style={{fontSize:16,fontWeight:900,color:C.text,textTransform:"uppercase",letterSpacing:.3}}>{navItems.find(n=>n.id===tab)?.label||"Dashboard"}</div>
@@ -1340,7 +1340,7 @@ export default function SquadPartner() {
           </div>
         </header>
 
-        <main style={{padding:26}}>
+        <main style={{padding:26,background:"#050f0a"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:12,marginBottom:22}}>
             <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${liveCount} กำลัง live`} footColor={liveCount>0?C.green:C.sub} hi/>
             <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จากทุก slot"/>
