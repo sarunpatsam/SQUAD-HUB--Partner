@@ -256,7 +256,7 @@ const ScanResult = ({playerId,onClose}) => {
 };
 
 /* ═══ CALENDAR ═══ */
-const TIMES = ["10:00","12:00","14:00","16:00","18:00","20:00","22:00"];
+const TIMES = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00"];
 const DAYS_TH = ["จ","อ","พ","พฤ","ศ","ส","อา"];
 
 const SlotBlock = ({slot,onClick}) => {
@@ -281,6 +281,7 @@ const SlotBlock = ({slot,onClick}) => {
         </div>
       )}
       {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
+      {slot.source==="platform"&&slot.status!=="live"&&<div style={{fontSize:8,fontWeight:800,padding:"1px 5px",borderRadius:99,background:"rgba(251,191,36,0.12)",color:C.amber,border:"1px solid rgba(251,191,36,0.3)",display:"inline-block",marginTop:3}}>⚡ S1 ฟรี Fee</div>}
     </div>
   );
 };
@@ -750,10 +751,17 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
               <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-                <option style={{background:"#091510"}} value="7v7">7v7 · 14 คน</option>
-                <option style={{background:"#091510"}} value="5v5">5v5 · 10 คน</option>
-                <option style={{background:"#091510"}} value="6v6">6v6 · 12 คน</option>
-                <option style={{background:"#091510"}} value="9v9">9v9 · 18 คน</option>
+                <optgroup label="7v7" style={{background:"#091510",color:"#6b9e85"}}>
+                  <option style={{background:"#091510"}} value="7v7_3t">7v7 · 3 ทีม · 21 คน</option>
+                  <option style={{background:"#091510"}} value="7v7_4t">7v7 · 4 ทีม · 28 คน</option>
+                </optgroup>
+                <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
+                  <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
+                </optgroup>
+                <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
+                  <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
+                  <option style={{background:"#091510"}} value="5v5_3t">5v5 · 3 ทีม · 15 คน</option>
+                </optgroup>
               </select>
             </div>
           </div>
