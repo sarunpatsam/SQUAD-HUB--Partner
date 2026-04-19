@@ -1222,7 +1222,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
         })}
       </nav>
 
-      {showOwnerPin&&<OwnerPin onSuccess={()=>{setMOwner(true);setShowOwnerPin(false);setMTab("finance");}} onCancel={()=>setShowOwnerPin(false)}/>}
+      {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);setScanId(id);}} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
@@ -1354,9 +1354,10 @@ export default function SquadPartner() {
                 <div style={{fontSize:14,fontWeight:900,color:C.text}}>📅 ตารางรายวัน</div>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <button onClick={navPrev} style={{width:32,height:32,borderRadius:7,background:C.bg2,border:`1px solid ${C.border}`,color:C.sub,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-                  <div style={{fontSize:14,fontWeight:800,color:C.text,minWidth:200,textAlign:"center"}}>{navDate()}</div>
-                  <button onClick={navNext} style={{width:32,height:32,borderRadius:7,background:C.bg2,border:`1px solid ${C.border}`,color:C.sub,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
-                  <button onClick={()=>setCalDate(new Date())} style={{padding:"6px 12px",borderRadius:7,background:C.greenDim,border:`1px solid ${C.borderHi}`,color:C.green,fontSize:12,fontWeight:800,cursor:"pointer"}}>วันนี้</button>
+<input type="date" value={calDate.toISOString().split("T")[0]} onChange={e=>setCalDate(new Date(e.target.value))}
+  style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",fontSize:13,fontWeight:800,color:C.text,cursor:"pointer",colorScheme:"dark"}}/>
+<button onClick={navNext} style={{width:32,height:32,borderRadius:7,background:C.bg2,border:`1px solid ${C.border}`,color:C.sub,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+<button onClick={()=>setCalDate(new Date())} style={{padding:"6px 12px",borderRadius:7,background:C.greenDim,border:`1px solid ${C.borderHi}`,color:C.green,fontSize:12,fontWeight:800,cursor:"pointer"}}>วันนี้</button>
                 </div>
               </div>
 
