@@ -49,7 +49,7 @@ const MetricCard = ({icon,value,label,foot,footColor,hi}) => (
 /* ═══ LOGIN ═══ */
 const VenueLogin = ({onSuccess}) => {
   const [email,setEmail]=useState(()=>localStorage.getItem("sq_partner_email")||"");
-  const [password,setPassword]=useState("");
+  const [password,setPassword]=useState(()=>localStorage.getItem("sq_partner_pw")||"");
   const [showPw,setShowPw]=useState(false);
   const [remember,setRemember]=useState(()=>!!localStorage.getItem("sq_partner_email"));
   const [loading,setLoading]=useState(false);
@@ -63,11 +63,12 @@ const VenueLogin = ({onSuccess}) => {
         email:email.trim().toLowerCase(),password
       });
       if(e){setError("Email หรือ Password ไม่ถูกต้อง");setLoading(false);return;}
-      // save/clear ก่อน query venue
       if(remember){
         localStorage.setItem("sq_partner_email",email.trim().toLowerCase());
+        localStorage.setItem("sq_partner_pw",password);
       } else {
         localStorage.removeItem("sq_partner_email");
+        localStorage.removeItem("sq_partner_pw");
       }
       const {data:v}=await supabase.from("venues").select("*")
         .eq("owner_email",email.trim().toLowerCase()).single();
@@ -370,7 +371,7 @@ const WeekView = ({slots,weekStart,onSelectSlot}) => {
           );
         })}
       </div>
-      {TIMES.map(time=>(
+      {TIMES_NIGHT.map(time=>(
         <div key={time} style={{display:"grid",gridTemplateColumns:`56px repeat(7,1fr)`,borderBottom:`1px solid rgba(255,255,255,0.04)`,minHeight:52}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:C.muted,fontStyle:"italic"}}>{time}</div>
           {days.map((d,di)=>{
@@ -765,12 +766,12 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
               <input type="time" value={time} onChange={e=>setTime(e.target.value)}
-  style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
+                style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
             </div>
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาสิ้นสุด</div>
-              <input type="time" value={time} onChange={e=>setTime(e.target.value)}
-  style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
+              <input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}
+                style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
@@ -1015,19 +1016,27 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
         {/* ── SCHEDULE ── */}
 {mTab==="schedule"&&(
   <div>
-    {/* Mini metrics */}
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-      <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"12px 14px"}}>
-        <div style={{fontSize:20,fontWeight:900,color:C.greenBr,lineHeight:1}}>{liveSlots.length}</div>
-        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Live</div>
+    {/* Dashboard metrics */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+      <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"12px 14px"}}>
+        <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Slot วันนี้</div>
+        <div style={{fontSize:22,fontWeight:900,color:C.greenBr,lineHeight:1}}>{displaySlots.length}</div>
+        <div style={{fontSize:10,color:liveSlots.length>0?C.green:C.sub,marginTop:3,fontWeight:700}}>{liveSlots.length} กำลัง live</div>
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
-        <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.reduce((a,s)=>a+(s.players||0),0)}</div>
-        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>ผู้เล่น</div>
+        <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>ผู้เล่นวันนี้</div>
+        <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.reduce((a,s)=>a+(s.players||0),0)}</div>
+        <div style={{fontSize:10,color:C.sub,marginTop:3,fontWeight:700}}>จากทุก slot</div>
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
-        <div style={{fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.filter(s=>s.status!=="available").length}/{displaySlots.length}</div>
-        <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Slot</div>
+        <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>รายได้วันนี้</div>
+        <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>฿{displaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}</div>
+        <div style={{fontSize:10,color:C.sub,marginTop:3,fontWeight:700}}>รวมทุกช่องทาง</div>
+      </div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
+        <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>Utilization</div>
+        <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{displaySlots.length>0?`${Math.round(displaySlots.filter(s=>s.status!=="available").length/displaySlots.length*100)}%`:"—"}</div>
+        <div style={{fontSize:10,color:C.sub,marginTop:3,fontWeight:700}}>{displaySlots.filter(s=>s.status!=="available").length}/{displaySlots.length} slot</div>
       </div>
     </div>
 
@@ -1040,7 +1049,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
             <div key={i} style={{padding:"6px 8px",fontSize:10,fontWeight:800,letterSpacing:1,color:C.muted,textTransform:"uppercase",textAlign:"center"}}>⚽ {i}</div>
           ))}
         </div>
-        {TIMES.map(time=>(
+        {TIMES_NIGHT.map(time=>(
           <div key={time} style={{display:"grid",gridTemplateColumns:`52px repeat(3,1fr)`,marginBottom:4,minHeight:64}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,color:C.muted,fontStyle:"italic",flexShrink:0}}>{time}</div>
             {[1,2,3].map(fi=>{
@@ -1191,6 +1200,18 @@ export default function SquadPartner() {
     window.addEventListener("resize",fn);return()=>window.removeEventListener("resize",fn);
   },[]);
 
+  // Auto-restore session on refresh
+  useEffect(()=>{
+    (async()=>{
+      const {data:{session}}=await supabase.auth.getSession();
+      if(session?.user?.email){
+        const {data:v}=await supabase.from("venues").select("*")
+          .eq("owner_email",session.user.email).single();
+        if(v){setVenue(v);setUnlocked(true);}
+      }
+    })();
+  },[]);
+
   useEffect(()=>{
     if(!venue)return;
     (async()=>{
@@ -1263,11 +1284,7 @@ export default function SquadPartner() {
         </nav>
         <div style={{padding:"10px 12px 8px",margin:"0 8px 8px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10}}>
           <div style={{fontSize:10,color:C.muted,fontWeight:700,marginBottom:2}}>เข้าสู่ระบบในฐานะ</div>
-          <div style={{fontSize:13,fontWeight:800,color:ownerUnlocked?C.amber:C.sub,marginBottom:8}}>{ownerUnlocked?"👑 เจ้าของ":"👤 Staff"}</div>
-          <div style={{borderTop:`1px solid rgba(255,255,255,0.06)`,paddingTop:8}}>
-            <div style={{fontSize:9,fontWeight:800,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>ยอดคงเหลือ</div>
-            <div style={{fontSize:16,fontWeight:900,color:C.green}}>฿{(venue?.wallet_balance||0).toLocaleString()}</div>
-          </div>
+          <div style={{fontSize:13,fontWeight:800,color:ownerUnlocked?C.amber:C.sub}}>{ownerUnlocked?"👑 เจ้าของ":"👤 Staff"}</div>
         </div>
         <div style={{padding:"12px 8px",borderTop:`1px solid ${C.border}`}}>
           <button onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:10,fontSize:13,fontWeight:700,color:C.muted,background:"none",border:"1px solid transparent",cursor:"pointer",width:"100%",textAlign:"left"}}>↩ ออกจากระบบ</button>
@@ -1337,7 +1354,7 @@ export default function SquadPartner() {
       {showPin&&<OwnerPin onSuccess={()=>{setOwnerUnlocked(true);setShowPin(false);setTab("finance");}} onCancel={()=>setShowPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);setScanId(id);}} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}input[type="time"]{color-scheme:dark}`}</style>
     </div>
   );
 }
