@@ -290,7 +290,6 @@ const SlotBlock = ({slot,onClick}) => {
         </div>
       )}
       {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
-      {slot.source==="platform"&&slot.status!=="live"&&<div style={{fontSize:8,fontWeight:800,padding:"1px 5px",borderRadius:99,background:"rgba(251,191,36,0.12)",color:C.amber,border:"1px solid rgba(251,191,36,0.3)",display:"inline-block",marginTop:3}}>⚡ S1 ฟรี Fee</div>}
     </div>
   );
 };
@@ -357,8 +356,9 @@ const DayView = ({fields,slots,date,onSelectSlot}) => {
 const WeekView = ({slots,weekStart,onSelectSlot}) => {
   const days = Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(d.getDate()+i);return d;});
   const today = new Date();
+  const SHOW_TIMES = ["10:00","12:00","14:00","16:00","18:00","20:00","22:00"];
   return (
-    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden"}}>
+    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",minHeight:400}}>
       <div style={{display:"grid",gridTemplateColumns:`56px repeat(7,1fr)`,borderBottom:`1px solid rgba(255,255,255,0.06)`}}>
         <div/>
         {days.map((d,i)=>{
@@ -371,7 +371,7 @@ const WeekView = ({slots,weekStart,onSelectSlot}) => {
           );
         })}
       </div>
-      {TIMES_NIGHT.map(time=>(
+      {SHOW_TIMES.map(time=>(
         <div key={time} style={{display:"grid",gridTemplateColumns:`56px repeat(7,1fr)`,borderBottom:`1px solid rgba(255,255,255,0.04)`,minHeight:52}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:C.muted,fontStyle:"italic"}}>{time}</div>
           {days.map((d,di)=>{
@@ -411,7 +411,7 @@ const MonthView = ({slots,monthDate,onSelectDay}) => {
   const slotsByDay={};
   slots.forEach(s=>{const d=new Date(s.date);if(d.getFullYear()===year&&d.getMonth()===month){const k=d.getDate();if(!slotsByDay[k])slotsByDay[k]=[];slotsByDay[k].push(s);}});
   return (
-    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden"}}>
+    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",minHeight:400}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:`1px solid rgba(255,255,255,0.06)`}}>
         {DAYS_TH.map(d=><div key={d} style={{padding:"9px 8px",fontSize:10,fontWeight:800,letterSpacing:1.5,color:C.muted,textTransform:"uppercase",textAlign:"center"}}>{d}</div>)}
       </div>
@@ -578,10 +578,10 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
   const filtered=playerName.trim().length>0?MOCK_PLAYERS.filter(p=>p.name.includes(playerName.trim())):[];
 
   const maxPlayers = {
-  "7v7_2t":14,"7v7_3t":21,"7v7_4t":28,
-  "6v6_2t":12,"6v6_3t":18,"6v6_6t":36,
-  "5v5_2t":10,"5v5_3t":15,
-};
+    "7v7_2t":14,"7v7_3t":21,"7v7_4t":28,
+    "6v6_2t":12,"6v6_3t":18,"6v6_4t":24,
+    "5v5_2t":10,"5v5_3t":15,
+  };
 
   // สร้าง slot ใหม่
   const handleCreate = async () => {
@@ -765,13 +765,15 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
-              <input type="time" value={time} onChange={e=>setTime(e.target.value)}
-                style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
+              <select value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0,background:"#091510",color:C.text}}>
+                {TIMES.map(t=><option key={t} value={t} style={{background:"#091510"}}>{t}</option>)}
+              </select>
             </div>
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาสิ้นสุด</div>
-              <input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}
-                style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
+              <select value={endTime} onChange={e=>setEndTime(e.target.value)} style={{...inp,marginBottom:0,background:"#091510",color:C.text}}>
+                {TIMES.map(t=><option key={t} value={t} style={{background:"#091510"}}>{t}</option>)}
+              </select>
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
@@ -790,7 +792,7 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
   <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
     <option style={{background:"#091510"}} value="6v6_2t">6v6 · 2 ทีม · 12 คน</option>
     <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
-    <option style={{background:"#091510"}} value="6v6_6t">6v6 · 6 ทีม · 36 คน</option>
+    <option style={{background:"#091510"}} value="6v6_4t">6v6 · 4 ทีม · 24 คน</option>
   </optgroup>
   <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
     <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
@@ -825,8 +827,9 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
       <div>
         <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
-        <input type="time" value={time} onChange={e=>setTime(e.target.value)}
-  style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
+        <select value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0,background:"#091510",color:C.text}}>
+          {TIMES.map(t=><option key={t} value={t} style={{background:"#091510"}}>{t}</option>)}
+        </select>
       </div>
       <div>
         <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา/คน ฿</div>
@@ -1198,18 +1201,6 @@ export default function SquadPartner() {
   useEffect(()=>{
     const fn=()=>setIsMobile(window.innerWidth<768);
     window.addEventListener("resize",fn);return()=>window.removeEventListener("resize",fn);
-  },[]);
-
-  // Auto-restore session on refresh
-  useEffect(()=>{
-    (async()=>{
-      const {data:{session}}=await supabase.auth.getSession();
-      if(session?.user?.email){
-        const {data:v}=await supabase.from("venues").select("*")
-          .eq("owner_email",session.user.email).single();
-        if(v){setVenue(v);setUnlocked(true);}
-      }
-    })();
   },[]);
 
   useEffect(()=>{
