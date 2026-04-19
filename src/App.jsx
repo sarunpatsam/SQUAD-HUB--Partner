@@ -900,9 +900,11 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
 };
 
 /* ═══ MATCH END ═══ */
-const MatchEndTab = ({match,onDone}) => {
+const MatchEndTab = ({match,onDone,slots}) => {
   const [sent,setSent]=useState(false);
   const [loading,setLoading]=useState(false);
+  const liveSlots = slots?.filter(s=>s.status==="live")||[];
+  const endedToday = slots?.filter(s=>s.status==="ended"||s.status==="offline")||[];
   const confirm = async () => {
     setLoading(true);
     try { await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({match_id:match?.id||1,venue_id:match?.venue_id||1})}); }
@@ -918,16 +920,65 @@ const MatchEndTab = ({match,onDone}) => {
     </div>
   );
   return(
-    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24,maxWidth:500}}>
-      <div style={{fontSize:11,fontWeight:800,color:C.green,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>ยืนยันแมตช์จบ</div>
-      <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:6}}>{match?.name||"Match"}</div>
-      <div style={{fontSize:13,color:C.sub,marginBottom:20}}>{match?.time||"—"} · {match?.players||0} ผู้เล่น</div>
-      <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:22,fontSize:12,color:C.greenBr,lineHeight:1.9,fontWeight:700}}>
-        หลังกดยืนยัน:<br/><span style={{color:C.sub,fontWeight:400}}>LINE Bot → แจ้งกัปตัน → กัปตันส่งสรุป → AI บันทึก Stats + XP</span>
+    <div style={{maxWidth:600}}>
+      {/* Match dashboard */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:22}}>
+        <div style={{background:"rgba(16,185,129,0.08)",border:`1px solid ${C.borderHi}`,borderRadius:14,padding:"14px 16px"}}>
+          <div style={{fontSize:20,marginBottom:6}}>⏱️</div>
+          <div style={{fontSize:22,fontWeight:900,color:C.greenBr,lineHeight:1}}>{liveSlots.length}</div>
+          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>กำลัง Live</div>
+          <div style={{fontSize:11,color:C.green,marginTop:3,fontWeight:700}}>รอยืนยันจบ</div>
+        </div>
+        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
+          <div style={{fontSize:20,marginBottom:6}}>✅</div>
+          <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{endedToday.length}</div>
+          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>จบแล้ววันนี้</div>
+          <div style={{fontSize:11,color:C.sub,marginTop:3,fontWeight:700}}>Stats บันทึกแล้ว</div>
+        </div>
+        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
+          <div style={{fontSize:20,marginBottom:6}}>👥</div>
+          <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{liveSlots.reduce((a,s)=>a+(s.players||0),0)}</div>
+          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>ผู้เล่น Live</div>
+          <div style={{fontSize:11,color:C.sub,marginTop:3,fontWeight:700}}>รอรับ XP + Stats</div>
+        </div>
       </div>
-      <Btn onClick={confirm} disabled={loading} style={{width:"100%",padding:14,fontSize:15}}>
-        {loading?"กำลังส่ง...":"⏱ ยืนยันแมตช์จบ →"}
-      </Btn>
+
+      {/* Live matches list */}
+      {liveSlots.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>แมตช์ที่กำลัง Live</div>
+          {liveSlots.map((s,i)=>(
+            <div key={i} style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:C.green,flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:800,color:C.green}}>{s.name||`MATCH ${i+1}`}</div>
+                <div style={{fontSize:11,color:C.sub,marginTop:2}}>{s.time} · {s.players||0}/{s.total||14} คน · สนาม {s.field||1}</div>
+              </div>
+              <Tag color={C.green}>LIVE</Tag>
+            </div>
+          ))}
+        </div>
+      )}
+      {liveSlots.length===0&&(
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:20,textAlign:"center",marginBottom:16}}>
+          <div style={{fontSize:24,marginBottom:8}}>🏁</div>
+          <div style={{fontSize:14,color:C.sub}}>ไม่มีแมตช์ที่กำลัง Live ตอนนี้</div>
+        </div>
+      )}
+
+      {/* Confirm panel */}
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
+        <div style={{fontSize:11,fontWeight:800,color:C.green,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>ยืนยันแมตช์จบ</div>
+        <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:6}}>{match?.name||"เลือก Match จาก calendar"}</div>
+        <div style={{fontSize:13,color:C.sub,marginBottom:20}}>{match?.time||"—"} · {match?.players||0} ผู้เล่น</div>
+        <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:22,fontSize:12,color:C.greenBr,lineHeight:1.9,fontWeight:700}}>
+          หลังกดยืนยัน:<br/><span style={{color:C.sub,fontWeight:400}}>LINE Bot → แจ้งกัปตัน → กัปตันส่งสรุป → AI บันทึก Stats + XP</span>
+        </div>
+        <Btn onClick={confirm} disabled={loading||!match} style={{width:"100%",padding:14,fontSize:15}}>
+          {loading?"กำลังส่ง...":"⏱ ยืนยันแมตช์จบ →"}
+        </Btn>
+        {!match&&<div style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:10}}>กด slot LIVE ใน calendar เพื่อเลือก match</div>}
+      </div>
     </div>
   );
 };
@@ -967,7 +1018,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
   const displaySlots = slots.length===0 ? MOCK_SLOTS : slots;
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',system-ui,sans-serif",position:"relative"}}>
       <header style={{padding:"12px 16px",background:"rgba(5,10,8,0.97)",backdropFilter:"blur(24px)",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:50}}>
         <Wordmark sm/>
         <div style={{textAlign:"right"}}>
@@ -1114,7 +1165,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
 
         {/* ── MATCH END ── */}
         {mTab==="matchend"&&(
-          <MatchEndTab match={activeMatch} onDone={()=>setMTab("scan")}/>
+          <MatchEndTab match={activeMatch} onDone={()=>setMTab("scan")} slots={displaySlots}/>
         )}
 
         {/* ── FINANCE (owner only) ── */}
@@ -1174,11 +1225,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setMOwner(true);setShowOwnerPin(false);setMTab("finance");}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);setScanId(id);}} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
-      <style>{`
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  *{box-sizing:border-box}
-  input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}
-`}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
   );
 };
@@ -1320,17 +1367,17 @@ export default function SquadPartner() {
                 </div>
               </div>
 
-              <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:16}}>
+              <div style={{display:"grid",gridTemplateColumns:calView==="day"?"1fr 340px":"1fr",gap:16}}>
                 <div>
                   {calView==="day"&&<DayView fields={fields} slots={todaySlots} date={calDate} onSelectSlot={setSelectedSlot}/>}
                   {calView==="week"&&<WeekView slots={slots} weekStart={weekStart} onSelectSlot={setSelectedSlot}/>}
                   {calView==="month"&&<MonthView slots={slots} monthDate={calDate} onSelectDay={d=>{setCalDate(d);setCalView("day");}}/>}
                 </div>
-                <BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={()=>window.location.reload()}/>
+                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={()=>window.location.reload()}/>}
               </div>
             </div>
           )}
-          {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")}/>}
+          {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")} slots={todaySlots}/>}
           {tab==="shop"&&<ShopTab ownerUnlocked={ownerUnlocked}/>}
           {tab==="finance"&&<FinanceTab venue={venue}/>}
           {tab==="booking"&&(
