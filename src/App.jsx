@@ -548,8 +548,10 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
   const filtered=playerName.trim().length>0?MOCK_PLAYERS.filter(p=>p.name.includes(playerName.trim())):[];
 
   const maxPlayers = {
-    "7v7":14,"5v5":10,"6v6":12,"9v9":18
-  };
+  "7v7_3t":21,"7v7_4t":28,
+  "6v6_3t":18,
+  "5v5_2t":10,"5v5_3t":15,
+};
 
   // สร้าง slot ใหม่
   const handleCreate = async () => {
@@ -791,11 +793,19 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
             <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-              <option style={{background:"#091510"}} value="7v7">7v7 · 14 คน</option>
-              <option style={{background:"#091510"}} value="5v5">5v5 · 10 คน</option>
-              <option style={{background:"#091510"}} value="6v6">6v6 · 12 คน</option>
-              <option style={{background:"#091510"}} value="9v9">9v9 · 18 คน</option>
-            </select>
+             <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+  <optgroup label="7v7" style={{background:"#091510",color:"#6b9e85"}}>
+    <option style={{background:"#091510"}} value="7v7_3t">7v7 · 3 ทีม · 21 คน</option>
+    <option style={{background:"#091510"}} value="7v7_4t">7v7 · 4 ทีม · 28 คน</option>
+  </optgroup>
+  <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
+    <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
+  </optgroup>
+  <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
+    <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
+    <option style={{background:"#091510"}} value="5v5_3t">5v5 · 3 ทีม · 15 คน</option>
+  </optgroup>
+</select>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <Btn ghost onClick={()=>setConfirm(true)} style={{width:"100%",color:C.red,borderColor:"rgba(239,68,68,0.3)"}}>
