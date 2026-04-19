@@ -59,11 +59,18 @@ const VenueLogin = ({onSuccess}) => {
     if(!email.trim()||!password.trim())return;
     setLoading(true);setError("");
     try {
-      const {error:e}=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password});
+      const {error:e}=await supabase.auth.signInWithPassword({
+        email:email.trim().toLowerCase(),password
+      });
       if(e){setError("Email หรือ Password ไม่ถูกต้อง");setLoading(false);return;}
-      if(remember) localStorage.setItem("sq_partner_email",email.trim().toLowerCase());
-      else localStorage.removeItem("sq_partner_email");
-      const {data:v}=await supabase.from("venues").select("*").eq("owner_email",email.trim().toLowerCase()).single();
+      // save/clear ก่อน query venue
+      if(remember){
+        localStorage.setItem("sq_partner_email",email.trim().toLowerCase());
+      } else {
+        localStorage.removeItem("sq_partner_email");
+      }
+      const {data:v}=await supabase.from("venues").select("*")
+        .eq("owner_email",email.trim().toLowerCase()).single();
       onSuccess(v);
     } catch{setError("เกิดข้อผิดพลาด");setLoading(false);}
   };
@@ -256,8 +263,9 @@ const ScanResult = ({playerId,onClose}) => {
 };
 
 /* ═══ CALENDAR ═══ */
-const TIMES = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00"];
-const DAYS_TH = ["จ","อ","พ","พฤ","ศ","ส","อา"];
+const TIMES_DAY = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+const TIMES_NIGHT = ["18:00","19:00","20:00","21:00","22:00","23:00","00:00"];
+const TIMES = [...TIMES_DAY,...TIMES_NIGHT];
 
 const SlotBlock = ({slot,onClick}) => {
   if(!slot) return (
@@ -296,19 +304,39 @@ const MOCK_SLOTS = [
 ];
 
 const DayView = ({fields,slots,date,onSelectSlot}) => {
+  const [period,setPeriod]=useState("night"); // day | night
+  const times = period==="day" ? TIMES_DAY : TIMES_NIGHT;
   const today = new Date().toISOString().split("T")[0];
   const isToday = date.toISOString().split("T")[0]===today;
   const displaySlots = isToday&&slots.length===0 ? MOCK_SLOTS : slots;
   const fieldNames = fields.map((_,i)=>`สนาม ${i+1}`);
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden"}}>
+      {/* Day/Night toggle */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:`1px solid rgba(255,255,255,0.06)`}}>
+        <div style={{display:"flex",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
+          <button onClick={()=>setPeriod("day")}
+            style={{padding:"6px 16px",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",background:period==="day"?"rgba(251,191,36,0.15)":"transparent",color:period==="day"?C.amber:C.sub,transition:"all .15s"}}>
+            ☀️ กลางวัน
+          </button>
+          <button onClick={()=>setPeriod("night")}
+            style={{padding:"6px 16px",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",background:period==="night"?C.greenDim:"transparent",color:period==="night"?C.green:C.sub,transition:"all .15s"}}>
+            🌙 กลางคืน
+          </button>
+        </div>
+        <div style={{fontSize:11,color:C.muted}}>
+          {period==="day"?"06:00 – 17:00":"18:00 – 00:00"}
+        </div>
+      </div>
+      {/* Header */}
       <div style={{display:"grid",gridTemplateColumns:`56px ${fieldNames.map(()=>"1fr").join(" ")}`,borderBottom:`1px solid rgba(255,255,255,0.06)`}}>
         <div style={{padding:"10px 8px"}}/>
         {fieldNames.map((f,i)=>(
           <div key={i} style={{padding:"10px 12px",fontSize:11,fontWeight:800,letterSpacing:1.5,color:C.muted,textTransform:"uppercase",borderLeft:`1px solid rgba(255,255,255,0.04)`}}>⚽ {f}</div>
         ))}
       </div>
-      {TIMES.map(time=>(
+      {/* Rows */}
+      {times.map(time=>(
         <div key={time} style={{display:"grid",gridTemplateColumns:`56px ${fieldNames.map(()=>"1fr").join(" ")}`,borderBottom:`1px solid rgba(255,255,255,0.04)`,minHeight:72}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:C.muted,fontStyle:"italic"}}>{time}</div>
           {fieldNames.map((_,fi)=>{
@@ -549,8 +577,8 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
   const filtered=playerName.trim().length>0?MOCK_PLAYERS.filter(p=>p.name.includes(playerName.trim())):[];
 
   const maxPlayers = {
-  "7v7_3t":21,"7v7_4t":28,
-  "6v6_3t":18,
+  "7v7_2t":14,"7v7_3t":21,"7v7_4t":28,
+  "6v6_2t":12,"6v6_3t":18,"6v6_6t":36,
   "5v5_2t":10,"5v5_3t":15,
 };
 
@@ -736,11 +764,13 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
-              <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
+              <input type="time" value={time} onChange={e=>setTime(e.target.value)}
+  style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
             </div>
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาสิ้นสุด</div>
-              <input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)} style={{...inp,marginBottom:0}}/>
+              <input type="time" value={time} onChange={e=>setTime(e.target.value)}
+  style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
@@ -751,18 +781,21 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ประเภท</div>
               <select value={matchType} onChange={e=>setMatchType(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-                <optgroup label="7v7" style={{background:"#091510",color:"#6b9e85"}}>
-                  <option style={{background:"#091510"}} value="7v7_3t">7v7 · 3 ทีม · 21 คน</option>
-                  <option style={{background:"#091510"}} value="7v7_4t">7v7 · 4 ทีม · 28 คน</option>
-                </optgroup>
-                <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
-                  <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
-                </optgroup>
-                <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
-                  <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
-                  <option style={{background:"#091510"}} value="5v5_3t">5v5 · 3 ทีม · 15 คน</option>
-                </optgroup>
-              </select>
+  <optgroup label="7v7" style={{background:"#091510",color:"#6b9e85"}}>
+    <option style={{background:"#091510"}} value="7v7_2t">7v7 · 2 ทีม · 14 คน</option>
+    <option style={{background:"#091510"}} value="7v7_3t">7v7 · 3 ทีม · 21 คน</option>
+    <option style={{background:"#091510"}} value="7v7_4t">7v7 · 4 ทีม · 28 คน</option>
+  </optgroup>
+  <optgroup label="6v6" style={{background:"#091510",color:"#6b9e85"}}>
+    <option style={{background:"#091510"}} value="6v6_2t">6v6 · 2 ทีม · 12 คน</option>
+    <option style={{background:"#091510"}} value="6v6_3t">6v6 · 3 ทีม · 18 คน</option>
+    <option style={{background:"#091510"}} value="6v6_6t">6v6 · 6 ทีม · 36 คน</option>
+  </optgroup>
+  <optgroup label="5v5" style={{background:"#091510",color:"#6b9e85"}}>
+    <option style={{background:"#091510"}} value="5v5_2t">5v5 · 2 ทีม · 10 คน</option>
+    <option style={{background:"#091510"}} value="5v5_3t">5v5 · 3 ทีม · 15 คน</option>
+  </optgroup>
+</select>
             </div>
           </div>
           <div style={{marginBottom:16}}>
@@ -791,7 +824,8 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
       <div>
         <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เวลาเริ่ม</div>
-        <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...inp,marginBottom:0}}/>
+        <input type="time" value={time} onChange={e=>setTime(e.target.value)}
+  style={{...inp,marginBottom:0,colorScheme:"dark"}}/>
       </div>
       <div>
         <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ราคา/คน ฿</div>
@@ -1128,7 +1162,11 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setMOwner(true);setShowOwnerPin(false);setMTab("finance");}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);setScanId(id);}} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
+      <style>{`
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  *{box-sizing:border-box}
+  input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}
+`}</style>
     </div>
   );
 };
@@ -1274,7 +1312,7 @@ export default function SquadPartner() {
                 </div>
               </div>
 
-              <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:16}}>
                 <div>
                   {calView==="day"&&<DayView fields={fields} slots={todaySlots} date={calDate} onSelectSlot={setSelectedSlot}/>}
                   {calView==="week"&&<WeekView slots={slots} weekStart={weekStart} onSelectSlot={setSelectedSlot}/>}
