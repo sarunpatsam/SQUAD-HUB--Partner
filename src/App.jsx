@@ -174,7 +174,7 @@ const QRScanner = ({onResult,onClose}) => {
     return ()=>{scanner.current?.stop().catch(()=>{});if(document.head.contains(s))document.head.removeChild(s);};
   },[]);
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
       <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:20,padding:20,width:"100%",maxWidth:380}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
           <div>
