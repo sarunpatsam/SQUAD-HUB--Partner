@@ -213,7 +213,7 @@ const ScanResult = ({playerId,onClose}) => {
     </div>
   );
   if(!player)return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
       <div style={{background:C.bg2,border:`1px solid ${C.red}40`,borderRadius:20,padding:24,width:"100%",maxWidth:360,textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>❌</div>
         <div style={{fontSize:15,fontWeight:900,color:C.red,marginBottom:8}}>ไม่พบผู้เล่น</div>
@@ -222,7 +222,7 @@ const ScanResult = ({playerId,onClose}) => {
     </div>
   );
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
       <div style={{background:C.bg2,border:`1px solid ${done?C.borderHi:C.border}`,borderRadius:20,padding:24,width:"100%",maxWidth:380}}>
         {done?(
           <div style={{textAlign:"center"}}>
