@@ -1386,7 +1386,7 @@ export default function SquadPartner() {
       </div>
 
       {showPin&&<OwnerPin onSuccess={()=>{setOwnerUnlocked(true);setShowPin(false);setTab("finance");}} onCancel={()=>setShowPin(false)}/>}
-      {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);setScanId(id);}} onClose={()=>setShowScanner(false)}/>}
+      {showScanner&&<QRScanner onResult={id=>{setShowScanner(false);const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;setScanId(parsed);}} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}input[type="time"]{color-scheme:dark}`}</style>
     </div>
