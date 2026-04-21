@@ -1004,13 +1004,10 @@ const FinanceTab = ({venue}) => (
 );
 
 /* ═══ MOBILE ═══ */
-const MobileApp = ({venue,slots,ownerUnlocked,onLogout,scanId:scanIdProp,setScanId:setScanIdProp,showScanner:showScannerProp,setShowScanner:setShowScannerProp}) => {
+const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
   const [mTab,setMTab]=useState("scan");
-  const [showScanner,setShowScannerLocal]=useState(false);
-  const [scanId,setScanIdLocal]=useState(null);
-  const setShowScanner = setShowScannerProp||setShowScannerLocal;
-  const setScanId = setScanIdProp||setScanIdLocal;
-  const effectiveScanId = scanIdProp!==undefined?scanIdProp:scanId;
+  const [showScanner,setShowScanner]=useState(false);
+  const [scanId,setScanId]=useState(null);
   const [activeMatch,setActiveMatch]=useState(null);
   const [showOwnerPin,setShowOwnerPin]=useState(false);
   const [mOwner,setMOwner]=useState(ownerUnlocked||false);
@@ -1232,11 +1229,11 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout,scanId:scanIdProp,setScan
 
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{
-  setShowScanner(false);
-  const parsed = id.startsWith("SQ:")?id.replace("SQ:",""):id;
-  setScanId(parsed);
-}} onClose={()=>setShowScanner(false)}/>}
-      {effectiveScanId&&<ScanResult playerId={effectiveScanId} onClose={()=>setScanId(null)}/>}
+        setShowScanner(false);
+        const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
+        setScanId(parsed);
+      }} onClose={()=>setShowScanner(false)}/>}
+      {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
   );
@@ -1296,7 +1293,7 @@ export default function SquadPartner() {
   const navNext=()=>{const d=new Date(calDate);calView==="day"?d.setDate(d.getDate()+1):calView==="week"?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);setCalDate(d);};
 
   if(!unlocked)return<VenueLogin onSuccess={v=>{setVenue(v);setUnlocked(true);}}/>;
-  if(isMobile)return<MobileApp venue={venue} slots={todaySlots} ownerUnlocked={ownerUnlocked} onLogout={handleLogout} scanId={scanId} setScanId={setScanId} showScanner={showScanner} setShowScanner={setShowScanner}/>;
+  if(isMobile)return<MobileApp venue={venue} slots={todaySlots} ownerUnlocked={ownerUnlocked} onLogout={handleLogout}/>;
 
   const navItems=[
     {id:"calendar",icon:"📅",label:"ตารางสนาม"},
