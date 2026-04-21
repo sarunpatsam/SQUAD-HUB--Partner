@@ -208,7 +208,7 @@ const ScanResult = ({playerId,onClose}) => {
     });
 },[playerId]);
   if(loading)return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
       <div style={{fontSize:14,color:C.sub}}>กำลังโหลดข้อมูล...</div>
     </div>
   );
