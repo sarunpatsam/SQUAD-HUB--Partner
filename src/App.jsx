@@ -319,6 +319,20 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
             </div>
             <button onClick={()=>setDone(true)} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
               ✅ Check-in เข้าสนาม
+              const [alreadyCheckedIn,setAlreadyCheckedIn]=useState(false);
+              {alreadyCheckedIn?(
+  <div style={{textAlign:"center",padding:"16px 0",marginBottom:10}}>
+    <div style={{fontSize:36,marginBottom:8}}>❌</div>
+    <div style={{fontSize:15,fontWeight:900,color:C.red,marginBottom:4}}>Check-in ไปแล้ว</div>
+    <div style={{fontSize:12,color:C.sub}}>ผู้เล่นคนนี้ check-in ในแมตช์นี้แล้ว</div>
+  </div>
+):(
+  <button onClick={()=>setDone(true)} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
+    ✅ Check-in เข้าสนาม
+  </button>
+)}
+<Btn ghost onClick={onScanNext} style={{width:"100%"}}>🔲 สแกนคนถัดไป</Btn>
+<Btn ghost onClick={onClose} style={{width:"100%",marginTop:8}}>กลับหน้าหลัก</Btn>
             </button>
             <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
           </>
