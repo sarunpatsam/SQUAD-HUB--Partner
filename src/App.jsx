@@ -253,6 +253,10 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
   const [player,setPlayer]=useState(null);
   const [loading,setLoading]=useState(true);
   const [done,setDone]=useState(false);
+  const alreadyCheckedIn = (()=>{
+    try{const list=JSON.parse(sessionStorage.getItem("sq_ci")||"[]");return list.includes(String(playerId));}catch{return false;}
+  })();
+
   useEffect(()=>{
     if(!playerId){setLoading(false);return;}
     supabase.from("players").select("*").eq("id",playerId).single()
@@ -262,6 +266,15 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
         setLoading(false);
       });
   },[playerId]);
+
+  const handleCheckin = ()=>{
+    try{
+      const list=JSON.parse(sessionStorage.getItem("sq_ci")||"[]");
+      list.push(String(playerId));
+      sessionStorage.setItem("sq_ci",JSON.stringify(list));
+    }catch{}
+    setDone(true);
+  };
   if(loading)return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
       <div style={{fontSize:14,color:C.sub}}>กำลังโหลดข้อมูล...</div>
@@ -317,9 +330,17 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
                 </div>
               ))}
             </div>
-            <button onClick={()=>setDone(true)} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
-              ✅ Check-in เข้าสนาม
-            </button>
+            {alreadyCheckedIn?(
+              <div style={{textAlign:"center",padding:16,background:"rgba(239,68,68,0.06)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:12,marginBottom:10}}>
+                <div style={{fontSize:32,marginBottom:6}}>❌</div>
+                <div style={{fontSize:15,fontWeight:900,color:C.red,marginBottom:4}}>Check-in ไปแล้ว</div>
+                <div style={{fontSize:12,color:C.sub}}>{player.display_name} check-in ในรอบนี้แล้ว</div>
+              </div>
+            ):(
+              <button onClick={handleCheckin} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
+                ✅ Check-in เข้าสนาม
+              </button>
+            )}
             <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
           </>
         )}
