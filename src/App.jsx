@@ -194,19 +194,19 @@ const QRScanner = ({onResult,onClose}) => {
 };
 
 /* ═══ SCAN RESULT ═══ */
-const ScanResult = ({playerId,onClose}) => {
+const ScanResult = ({playerId,onClose,onScanNext}) => {
   const [player,setPlayer]=useState(null);
   const [loading,setLoading]=useState(true);
   const [done,setDone]=useState(false);
   useEffect(()=>{
-  if(!playerId){setLoading(false);return;}
-  supabase.from("players").select("*").eq("id",playerId).single()
-    .then(({data,error})=>{
-      console.log("ScanResult:",playerId,data,error);
-      setPlayer(data||null);
-      setLoading(false);
-    });
-},[playerId]);
+    if(!playerId){setLoading(false);return;}
+    supabase.from("players").select("*").eq("id",playerId).single()
+      .then(({data,error})=>{
+        console.log("ScanResult:",playerId,data,error);
+        setPlayer(data||null);
+        setLoading(false);
+      });
+  },[playerId]);
   if(loading)return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
       <div style={{fontSize:14,color:C.sub}}>กำลังโหลดข้อมูล...</div>
@@ -217,7 +217,7 @@ const ScanResult = ({playerId,onClose}) => {
       <div style={{background:C.bg2,border:`1px solid ${C.red}40`,borderRadius:20,padding:24,width:"100%",maxWidth:360,textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>❌</div>
         <div style={{fontSize:15,fontWeight:900,color:C.red,marginBottom:8}}>ไม่พบผู้เล่น</div>
-        <Btn ghost onClick={onClose} style={{width:"100%"}}>สแกนใหม่</Btn>
+        <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
       </div>
     </div>
   );
@@ -229,24 +229,22 @@ const ScanResult = ({playerId,onClose}) => {
             <div style={{fontSize:52,marginBottom:12}}>✅</div>
             <div style={{fontSize:18,fontWeight:900,color:C.green,marginBottom:6}}>Check-in สำเร็จ!</div>
             <div style={{fontSize:13,color:C.sub,marginBottom:20}}>{player.display_name} เข้าสนามแล้ว</div>
-            <Btn ghost onClick={()=>{setDone(false);onClose();}} style={{width:"100%"}}>สแกนคนต่อไป</Btn>
+            <Btn onClick={onScanNext} style={{width:"100%",marginBottom:10}}>🔲 สแกนคนต่อไป</Btn>
+            <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
           </div>
         ):(
           <>
-           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-  <div style={{display:"flex",alignItems:"center",gap:8}}>
-    <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:13,padding:"5px 10px",borderRadius:6,cursor:"pointer"}}>← กลับ</button>
-    <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase"}}>ผลการสแกน</div>
-  </div>
-  <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:12,padding:"3px 9px",borderRadius:6,cursor:"pointer"}}>✕</button>
-</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase"}}>ผลการสแกน</div>
+              <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:12,padding:"3px 9px",borderRadius:6,cursor:"pointer"}}>✕</button>
+            </div>
             <div style={{display:"flex",alignItems:"center",gap:14,padding:14,background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,marginBottom:14}}>
               <div style={{width:52,height:52,clipPath:"polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)",background:"rgba(139,92,246,0.15)",border:"2px solid #8b5cf6",overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#8b5cf6"}}>
-  {player.avatar_url
-    ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-    : player.display_name?.[0]?.toUpperCase()||"?"
-  }
-</div>
+                {player.avatar_url
+                  ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  : player.display_name?.[0]?.toUpperCase()||"?"
+                }
+              </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:18,fontWeight:900,color:C.text}}>{player.display_name}</div>
                 <div style={{fontSize:12,color:C.sub,marginTop:3}}>{player.position} · {player.tier} · SQ-{player.id}</div>
@@ -264,9 +262,10 @@ const ScanResult = ({playerId,onClose}) => {
                 </div>
               ))}
             </div>
-            <button onClick={()=>setDone(true)} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer"}}>
+            <button onClick={()=>setDone(true)} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
               ✅ Check-in เข้าสนาม
             </button>
+            <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
           </>
         )}
       </div>
@@ -1235,10 +1234,13 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
 
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{
-  const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
-  setScanId(parsed);
-}} onClose={()=>setShowScanner(false)}/>}
-{scanId&&<ScanResult playerId={scanId} onClose={()=>{setScanId(null);setShowScanner(true);}}/>}
+        const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
+        setScanId(parsed);
+      }} onClose={()=>setShowScanner(false)}/>}
+      {scanId&&<ScanResult playerId={scanId}
+        onClose={()=>{setScanId(null);setShowScanner(false);}}
+        onScanNext={()=>{setScanId(null);setShowScanner(true);}}
+      />}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
   );
@@ -1400,7 +1402,10 @@ export default function SquadPartner() {
   setScanId(parsed);
   setShowScanner(false);
 }} onClose={()=>setShowScanner(false)}/>}
-      {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
+      {scanId&&<ScanResult playerId={scanId}
+        onClose={()=>setScanId(null)}
+        onScanNext={()=>{setScanId(null);setShowScanner(true);}}
+      />}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}input[type="time"]{color-scheme:dark}`}</style>
     </div>
   );
