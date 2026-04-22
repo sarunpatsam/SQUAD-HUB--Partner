@@ -238,9 +238,12 @@ const ScanResult = ({playerId,onClose}) => {
               <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:12,padding:"3px 9px",borderRadius:6,cursor:"pointer"}}>✕</button>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:14,padding:14,background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,marginBottom:14}}>
-              <div style={{width:52,height:52,clipPath:"polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)",background:"rgba(139,92,246,0.15)",border:"2px solid #8b5cf6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#8b5cf6",flexShrink:0}}>
-                {player.display_name?.[0]?.toUpperCase()||"?"}
-              </div>
+              <div style={{width:52,height:52,clipPath:"polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)",background:"rgba(139,92,246,0.15)",border:"2px solid #8b5cf6",overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#8b5cf6"}}>
+  {player.avatar_url
+    ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+    : player.display_name?.[0]?.toUpperCase()||"?"
+  }
+</div>
               <div style={{flex:1}}>
                 <div style={{fontSize:18,fontWeight:900,color:C.text}}>{player.display_name}</div>
                 <div style={{fontSize:12,color:C.sub,marginTop:3}}>{player.position} · {player.tier} · SQ-{player.id}</div>
