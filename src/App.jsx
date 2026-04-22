@@ -253,31 +253,15 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
   const [player,setPlayer]=useState(null);
   const [loading,setLoading]=useState(true);
   const [done,setDone]=useState(false);
-  const [alreadyIn,setAlreadyIn]=useState(false);
   useEffect(()=>{
     if(!playerId){setLoading(false);return;}
-    // เช็ค check-in ซ้ำจาก session
-    const checked=JSON.parse(sessionStorage.getItem("sq_checkedin")||"[]");
-    if(checked.includes(String(playerId))){
-      setAlreadyIn(true);
-      setLoading(false);
-      supabase.from("players").select("*").eq("id",playerId).single()
-        .then(({data})=>setPlayer(data||null));
-      return;
-    }
     supabase.from("players").select("*").eq("id",playerId).single()
       .then(({data,error})=>{
+        console.log("ScanResult:",playerId,data,error);
         setPlayer(data||null);
         setLoading(false);
       });
   },[playerId]);
-
-  const handleCheckin = ()=>{
-    const checked=JSON.parse(sessionStorage.getItem("sq_checkedin")||"[]");
-    checked.push(String(playerId));
-    sessionStorage.setItem("sq_checkedin",JSON.stringify(checked));
-    setDone(true);
-  };
   if(loading)return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
       <div style={{fontSize:14,color:C.sub}}>กำลังโหลดข้อมูล...</div>
@@ -288,17 +272,6 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
       <div style={{background:C.bg2,border:`1px solid ${C.red}40`,borderRadius:20,padding:24,width:"100%",maxWidth:360,textAlign:"center"}}>
         <div style={{fontSize:36,marginBottom:12}}>❌</div>
         <div style={{fontSize:15,fontWeight:900,color:C.red,marginBottom:8}}>ไม่พบผู้เล่น</div>
-        <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
-      </div>
-    </div>
-  );
-  if(alreadyIn)return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
-      <div style={{background:C.bg2,border:`1px solid rgba(239,68,68,0.3)`,borderRadius:20,padding:24,width:"100%",maxWidth:380,textAlign:"center"}}>
-        <div style={{fontSize:52,marginBottom:12}}>❌</div>
-        <div style={{fontSize:18,fontWeight:900,color:C.red,marginBottom:6}}>Check-in ไปแล้ว</div>
-        <div style={{fontSize:13,color:C.sub,marginBottom:20}}>{player.display_name} check-in ในแมตช์นี้แล้ว</div>
-        <Btn onClick={onScanNext} style={{width:"100%",marginBottom:10}}>🔲 สแกนคนต่อไป</Btn>
         <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
       </div>
     </div>
@@ -322,11 +295,11 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
             </div>
             <div style={{display:"flex",alignItems:"center",gap:14,padding:14,background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,marginBottom:14}}>
               <div style={{width:52,height:52,borderRadius:10,border:"1.5px solid rgba(16,185,129,0.4)",overflow:"hidden",flexShrink:0,background:"rgba(16,185,129,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#10d484"}}>
-                {player.avatar_url
-                  ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  : player.display_name?.[0]?.toUpperCase()||"?"
-                }
-              </div>
+  {player.avatar_url
+    ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+    : player.display_name?.[0]?.toUpperCase()||"?"
+  }
+</div>
               <div style={{flex:1}}>
                 <div style={{fontSize:18,fontWeight:900,color:C.text}}>{player.display_name}</div>
                 <div style={{fontSize:12,color:C.sub,marginTop:3}}>{player.position} · {player.tier} · SQ-{player.id}</div>
@@ -344,7 +317,7 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
                 </div>
               ))}
             </div>
-            <button onClick={handleCheckin} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
+            <button onClick={()=>setDone(true)} style={{width:"100%",padding:14,borderRadius:12,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:15,fontWeight:900,cursor:"pointer",marginBottom:10}}>
               ✅ Check-in เข้าสนาม
             </button>
             <Btn ghost onClick={onClose} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
