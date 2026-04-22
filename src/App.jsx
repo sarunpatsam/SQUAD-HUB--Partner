@@ -649,7 +649,7 @@ const MOCK_PLAYERS = [
   {id:6,name:"Sarun Jr.",position:"MF",tier:"Bronze",ovr:71},
 ];
 
-const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
+const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
   const [mode,setMode]=useState("create"); // create | manage | block
   const [type,setType]=useState("platform");
   const [name,setName]=useState("");
@@ -1365,7 +1365,7 @@ export default function SquadPartner() {
         name:s.notes||s.match_id?`MATCH #SQ-${s.match_id}`:"",
         players:0,total:s.max_players||14,
         source:s.match_id?"platform":s.status==="offline"?"offline":"platform",
-        status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":"available",
+        status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
         venue_id:venue.id,
         amount:0,
       })));
@@ -1473,7 +1473,7 @@ export default function SquadPartner() {
                 <div>
                   {calView==="day"&&<DayView fields={fields} slots={todaySlots} date={calDate} onSelectSlot={setSelectedSlot}/>}
                 </div>
-                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={async()=>{
+                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} calDate={calDate} onSave={data=>console.log("save",data)} onRefresh={async()=>{
   const today=new Date().toISOString().split("T")[0];
   const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
   if(data)setSlots(data.map(s=>({
