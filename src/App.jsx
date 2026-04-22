@@ -1464,7 +1464,18 @@ export default function SquadPartner() {
                 <div>
                   {calView==="day"&&<DayView fields={fields} slots={todaySlots} date={calDate} onSelectSlot={setSelectedSlot}/>}
                 </div>
-                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={()=>window.location.reload()}/>}
+                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} onSave={data=>console.log("save",data)} onRefresh={async()=>{
+  const today=new Date().toISOString().split("T")[0];
+  const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
+  if(data)setSlots(data.map(s=>({
+    id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
+    field:s.field_number||1,name:s.match_id?`MATCH #SQ-${s.match_id}`:"",
+    players:0,total:s.max_players||14,
+    source:s.match_id?"platform":"offline",
+    status:s.status==="open"?"available":s.status==="full"?"full":"live",
+    venue_id:venue.id,
+  })));
+}}/>}
               </div>
             </div>
           )}
