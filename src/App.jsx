@@ -254,16 +254,14 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
   const [loading,setLoading]=useState(true);
   const [done,setDone]=useState(false);
   useEffect(()=>{
-  if(!playerId){setLoading(false);return;}
-  const checked=JSON.parse(sessionStorage.getItem("sq_checkedin")||"[]");
-  const isDup = checked.includes(String(playerId));
-  supabase.from("players").select("*").eq("id",playerId).single()
-    .then(({data})=>{
-      setPlayer(data||null);
-      if(isDup) setAlreadyIn(true);
-      setLoading(false);
-    });
-},[playerId]);
+    if(!playerId){setLoading(false);return;}
+    supabase.from("players").select("*").eq("id",playerId).single()
+      .then(({data,error})=>{
+        console.log("ScanResult:",playerId,data,error);
+        setPlayer(data||null);
+        setLoading(false);
+      });
+  },[playerId]);
   if(loading)return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
       <div style={{fontSize:14,color:C.sub}}>กำลังโหลดข้อมูล...</div>
@@ -1293,10 +1291,10 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner key={scanKey} onResult={id=>{
         const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
-        setScanId(parsed);
         setShowScanner(false);
+        setScanId(parsed);
       }} onClose={()=>setShowScanner(false)}/>}
-      {scanId&&<ScanResult playerId={scanId}
+      {!showScanner&&scanId&&<ScanResult playerId={scanId}
         onClose={()=>setScanId(null)}
         onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setShowScanner(true);}}
       />}
