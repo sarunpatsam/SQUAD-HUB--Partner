@@ -158,21 +158,36 @@ const QRScanner = ({onResult,onClose}) => {
   const ref=useRef(null);
   const scanner=useRef(null);
   const [err,setErr]=useState("");
+  const [started,setStarted]=useState(false);
+
+  const startScanner = useCallback(()=>{
+    if(!window.Html5Qrcode||!ref.current||started)return;
+    const qr=new window.Html5Qrcode("qr-scan-box");
+    scanner.current=qr;
+    qr.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:220}},
+      t=>{qr.stop().catch(()=>{});setStarted(false);onResult(t);},()=>{})
+      .then(()=>setStarted(true))
+      .catch(()=>setErr("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาต permission"));
+  },[onResult,started]);
+
   useEffect(()=>{
     const s=document.createElement("script");
     s.src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-    s.onload=()=>{
-      if(!window.Html5Qrcode||!ref.current)return;
-      const qr=new window.Html5Qrcode("qr-scan-box");
-      scanner.current=qr;
-      qr.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:220}},
-        t=>{qr.stop().catch(()=>{});onResult(t);},()=>{})
-        .catch(()=>setErr("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาต permission"));
-    };
+    s.onload=()=>startScanner();
     s.onerror=()=>setErr("ไม่สามารถโหลด QR Scanner");
-    document.head.appendChild(s);
-    return ()=>{scanner.current?.stop().catch(()=>{});if(document.head.contains(s))document.head.removeChild(s);};
+    if(window.Html5Qrcode){
+      startScanner();
+    } else {
+      document.head.appendChild(s);
+    }
+    return ()=>{
+      scanner.current?.stop().catch(()=>{});
+      scanner.current?.clear?.();
+      const el=document.getElementById("qr-scan-box");
+      if(el)el.innerHTML="";
+    };
   },[]);
+
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
       <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:20,padding:20,width:"100%",maxWidth:380}}>
@@ -1013,6 +1028,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
   const [mTab,setMTab]=useState("scan");
   const [showScanner,setShowScanner]=useState(false);
   const [scanId,setScanId]=useState(null);
+  const [scanKey,setScanKey]=useState(0);
   const [activeMatch,setActiveMatch]=useState(null);
   const [showOwnerPin,setShowOwnerPin]=useState(false);
   const [mOwner,setMOwner]=useState(ownerUnlocked||false);
@@ -1233,13 +1249,14 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       </nav>
 
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
-      {showScanner&&<QRScanner onResult={id=>{
+      {showScanner&&<QRScanner key={scanKey} onResult={id=>{
         const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
-        setScanId(parsed);
+        setShowScanner(false);
+        setTimeout(()=>setScanId(parsed),200);
       }} onClose={()=>setShowScanner(false)}/>}
       {scanId&&<ScanResult playerId={scanId}
-        onClose={()=>{setScanId(null);setShowScanner(false);}}
-        onScanNext={()=>{setScanId(null);setShowScanner(true);}}
+        onClose={()=>{setScanId(null);}}
+        onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setTimeout(()=>setShowScanner(true),100);}}
       />}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
