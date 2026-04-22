@@ -274,9 +274,9 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
 
   const handleCheckin = ()=>{
     try{
-      const list=JSON.parse(sessionStorage.getItem("sq_ci")||"[]");
-      list.push(String(playerId));
-      sessionStorage.setItem("sq_ci",JSON.stringify(list));
+      const map=JSON.parse(sessionStorage.getItem("sq_ci")||"{}");
+map[String(playerId)]=Date.now();
+sessionStorage.setItem("sq_ci",JSON.stringify(map));
     }catch{}
     setDone(true);
   };
