@@ -1229,11 +1229,10 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
 
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{
-        const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
-        setScanId(parsed);
-        setShowScanner(false);
-      }} onClose={()=>setShowScanner(false)}/>}
-      {scanId&&<ScanResult playerId={scanId} onClose={()=>setScanId(null)}/>}
+  const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
+  setScanId(parsed);
+}} onClose={()=>setShowScanner(false)}/>}
+{scanId&&<ScanResult playerId={scanId} onClose={()=>{setScanId(null);setShowScanner(false);}}/>}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
   );
