@@ -399,7 +399,7 @@ const DayView = ({fields,slots,date,onSelectSlot}) => {
   const times = period==="day" ? TIMES_DAY : TIMES_NIGHT;
   const today = new Date().toISOString().split("T")[0];
   const isToday = date.toISOString().split("T")[0]===today;
-  const displaySlots = isToday&&slots.length===0 ? MOCK_SLOTS : slots;
+  const displaySlots = slots.length===0 ? MOCK_SLOTS.map(s=>({...s,date:date.toISOString().split("T")[0]})) : slots;
   const fieldNames = fields.map((_,i)=>`สนาม ${i+1}`);
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden"}}>
@@ -678,17 +678,22 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
   const handleCreate = async () => {
     setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const slotDate = selected?.date || calDate?.toISOString().split("T")[0] || new Date().toISOString().split("T")[0];
+      const fieldNum = parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1;
+      const roomName = type==="platform"
+        ? `MATCH #SQ-${slotDate.replace(/-/g,"")}-F${fieldNum}`
+        : (name||"");
       const {error} = await supabase.from("slots").insert({
         venue_id: venueId,
-        date: today,
+        date: slotDate,
         start_time: time+":00",
         end_time: endTime+":00",
         price_per_player: parseInt(price)||0,
         max_players: maxPlayers[matchType]||14,
         match_type: matchType,
         status: type==="platform"?"open":"offline",
-        field_number: parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1,
+        field_number: fieldNum,
+        notes: roomName,
       });
       if(error) throw error;
       setDone("success");
@@ -1356,18 +1361,22 @@ export default function SquadPartner() {
       const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
       if(data)setSlots(data.map(s=>({
         id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
-        field:s.field_number||1,name:s.match_id?`MATCH #SQ-${s.match_id}`:"",
+        field:s.field_number||1,
+        name:s.notes||s.match_id?`MATCH #SQ-${s.match_id}`:"",
         players:0,total:s.max_players||14,
-        source:s.match_id?"platform":"offline",
-        status:s.status==="open"?"available":s.status==="full"?"full":"live",
+        source:s.match_id?"platform":s.status==="offline"?"offline":"platform",
+        status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":"available",
         venue_id:venue.id,
+        amount:0,
       })));
     })();
   },[venue]);
 
   const handleLogout=async()=>{await supabase.auth.signOut();setUnlocked(false);setVenue(null);setSlots([]);setOwnerUnlocked(false);};
-  const todaySlots=slots.filter(s=>s.date===new Date().toISOString().split("T")[0]);
-  const liveCount=todaySlots.filter(s=>s.status==="live").length;
+  const calDateStr=calDate.toISOString().split("T")[0];
+  const todaySlots=slots.filter(s=>s.date===calDateStr);
+  const todayStr=new Date().toISOString().split("T")[0];
+  const liveCount=slots.filter(s=>s.date===todayStr&&s.status==="live").length;
   const fields=Array.from({length:venue?.field_count||3});
 
   // week start (Monday)
