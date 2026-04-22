@@ -688,7 +688,7 @@ const BookingPanel = ({selected,venueId,onSave,onRefresh}) => {
         max_players: maxPlayers[matchType]||14,
         match_type: matchType,
         status: type==="platform"?"open":"offline",
-        field_number: selected?.field||1,
+        field_number: parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1,
       });
       if(error) throw error;
       setDone("success");
