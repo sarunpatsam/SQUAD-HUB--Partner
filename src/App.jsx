@@ -155,36 +155,68 @@ const OwnerPin = ({onSuccess,onCancel}) => {
 
 /* ═══ QR SCANNER ═══ */
 const QRScanner = ({onResult,onClose}) => {
-  const ref=useRef(null);
-  const scanner=useRef(null);
+  const videoRef=useRef(null);
+  const canvasRef=useRef(null);
+  const streamRef=useRef(null);
+  const rafRef=useRef(null);
   const [err,setErr]=useState("");
-  const [started,setStarted]=useState(false);
-
-  const startScanner = useCallback(()=>{
-    if(!window.Html5Qrcode||!ref.current||started)return;
-    const qr=new window.Html5Qrcode("qr-scan-box");
-    scanner.current=qr;
-    qr.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:220}},
-      t=>{qr.stop().catch(()=>{});setStarted(false);onResult(t);},()=>{})
-      .then(()=>setStarted(true))
-      .catch(()=>setErr("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาต permission"));
-  },[onResult,started]);
+  const [loading,setLoading]=useState(true);
 
   useEffect(()=>{
-    const s=document.createElement("script");
-    s.src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-    s.onload=()=>startScanner();
-    s.onerror=()=>setErr("ไม่สามารถโหลด QR Scanner");
-    if(window.Html5Qrcode){
-      startScanner();
-    } else {
-      document.head.appendChild(s);
-    }
+    let active=true;
+    const loadAndStart = async()=>{
+      try {
+        // Load jsQR
+        await new Promise((res,rej)=>{
+          if(window.jsQR){res();return;}
+          const s=document.createElement("script");
+          s.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+          s.onload=res; s.onerror=rej;
+          document.head.appendChild(s);
+        });
+        if(!active)return;
+        // Start camera
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}
+        });
+        if(!active){stream.getTracks().forEach(t=>t.stop());return;}
+        streamRef.current=stream;
+        if(videoRef.current){
+          videoRef.current.srcObject=stream;
+          await videoRef.current.play();
+        }
+        setLoading(false);
+        // Scan loop
+        const tick=()=>{
+          if(!active)return;
+          const video=videoRef.current;
+          const canvas=canvasRef.current;
+          if(video&&canvas&&video.readyState===video.HAVE_ENOUGH_DATA){
+            canvas.width=video.videoWidth;
+            canvas.height=video.videoHeight;
+            const ctx=canvas.getContext("2d");
+            ctx.drawImage(video,0,0,canvas.width,canvas.height);
+            const img=ctx.getImageData(0,0,canvas.width,canvas.height);
+            const code=window.jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"});
+            if(code){
+              active=false;
+              streamRef.current?.getTracks().forEach(t=>t.stop());
+              onResult(code.data);
+              return;
+            }
+          }
+          rafRef.current=requestAnimationFrame(tick);
+        };
+        rafRef.current=requestAnimationFrame(tick);
+      } catch(e){
+        if(active)setErr("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาต permission");
+      }
+    };
+    loadAndStart();
     return ()=>{
-      scanner.current?.stop().catch(()=>{});
-      scanner.current?.clear?.();
-      const el=document.getElementById("qr-scan-box");
-      if(el)el.innerHTML="";
+      active=false;
+      cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t=>t.stop());
     };
   },[]);
 
@@ -198,9 +230,11 @@ const QRScanner = ({onResult,onClose}) => {
           </div>
           <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:13,padding:"4px 10px",borderRadius:6,cursor:"pointer"}}>✕</button>
         </div>
-        <div id="qr-scan-box" ref={ref} style={{width:"100%",borderRadius:12,overflow:"hidden",background:C.bg,minHeight:240,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          {!err&&<div style={{fontSize:13,color:C.muted}}>กำลังเปิดกล้อง...</div>}
+        <div style={{width:"100%",borderRadius:12,overflow:"hidden",background:C.bg,minHeight:240,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {loading&&!err&&<div style={{fontSize:13,color:C.muted,position:"absolute"}}>กำลังเปิดกล้อง...</div>}
           {err&&<div style={{fontSize:13,color:C.red,padding:20,textAlign:"center"}}>{err}</div>}
+          <video ref={videoRef} style={{width:"100%",display:err?"none":"block",borderRadius:12}} muted playsInline/>
+          <canvas ref={canvasRef} style={{display:"none"}}/>
         </div>
         <div style={{marginTop:12,fontSize:12,color:C.muted,textAlign:"center"}}>ส่องกล้องไปที่ QR code บนหน้าจอผู้เล่น</div>
       </div>
@@ -1252,11 +1286,11 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       {showScanner&&<QRScanner key={scanKey} onResult={id=>{
         const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
         setShowScanner(false);
-        setTimeout(()=>setScanId(parsed),200);
+        setScanId(parsed);
       }} onClose={()=>setShowScanner(false)}/>}
-      {scanId&&<ScanResult playerId={scanId}
-        onClose={()=>{setScanId(null);}}
-        onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setTimeout(()=>setShowScanner(true),100);}}
+      {!showScanner&&scanId&&<ScanResult playerId={scanId}
+        onClose={()=>setScanId(null)}
+        onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setShowScanner(true);}}
       />}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
