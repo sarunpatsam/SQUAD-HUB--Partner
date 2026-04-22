@@ -1364,7 +1364,7 @@ export default function SquadPartner() {
         field:s.field_number||1,
         name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
         players:0,total:s.max_players||14,
-        source:s.match_id?"platform":s.status==="offline"?"offline":"platform",
+        source:s.status==="offline"?"offline":s.match_id?"platform":"platform",
         status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
         venue_id:venue.id,
         amount:0,
@@ -1478,11 +1478,12 @@ export default function SquadPartner() {
   const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
   if(data)setSlots(data.map(s=>({
     id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
-    field:s.field_number||1,name:s.match_id?`MATCH #SQ-${s.match_id}`:"",
+    field:s.field_number||1,
+    name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
     players:0,total:s.max_players||14,
-    source:s.match_id?"platform":"offline",
-    status:s.status==="open"?"available":s.status==="full"?"full":"live",
-    venue_id:venue.id,
+    source:s.status==="offline"?"offline":s.match_id?"platform":"platform",
+    status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
+    venue_id:venue.id,amount:0,
   })));
 }}/>}
               </div>
