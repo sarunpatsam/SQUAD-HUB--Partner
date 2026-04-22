@@ -254,8 +254,13 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
   const [loading,setLoading]=useState(true);
   const [done,setDone]=useState(false);
   const alreadyCheckedIn = (()=>{
-    try{const list=JSON.parse(sessionStorage.getItem("sq_ci")||"[]");return list.includes(String(playerId));}catch{return false;}
-  })();
+  try{
+    const map=JSON.parse(sessionStorage.getItem("sq_ci")||"{}");
+    const ts=map[String(playerId)];
+    if(!ts)return false;
+    return (Date.now()-ts) < 60*60*1000; // block ใน 1 ชั่วโมง
+  }catch{return false;}
+})();
 
   useEffect(()=>{
     if(!playerId){setLoading(false);return;}
