@@ -226,7 +226,7 @@ const QRScanner = ({onResult,onClose}) => {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
           <div>
             <div style={{fontSize:16,fontWeight:900,color:C.text}}>🔲 Scan Player QR</div>
-            <div style={{fontSize:12,color:C.sub,marginTop:2}}>ให้ผู้เล่นเปิด SQUAD HUB → กด "QR ของฉัน"</div>
+            <div style={{fontSize:12,color:C.sub,marginTop:2}}>ให้ผู้เล่นเปิด SQUAD HUB → กด "Player QR"</div>
           </div>
           <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:13,padding:"4px 10px",borderRadius:6,cursor:"pointer"}}>✕</button>
         </div>
@@ -288,12 +288,12 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
               <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:12,padding:"3px 9px",borderRadius:6,cursor:"pointer"}}>✕</button>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:14,padding:14,background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,marginBottom:14}}>
-              <div style={{width:52,height:52,clipPath:"polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)",background:"rgba(139,92,246,0.15)",border:"2px solid #8b5cf6",overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#8b5cf6"}}>
-                {player.avatar_url
-                  ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  : player.display_name?.[0]?.toUpperCase()||"?"
-                }
-              </div>
+              <div style={{width:52,height:52,borderRadius:10,border:"1.5px solid rgba(16,185,129,0.4)",overflow:"hidden",flexShrink:0,background:"rgba(16,185,129,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#10d484"}}>
+  {player.avatar_url
+    ? <img src={player.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+    : player.display_name?.[0]?.toUpperCase()||"?"
+  }
+</div>
               <div style={{flex:1}}>
                 <div style={{fontSize:18,fontWeight:900,color:C.text}}>{player.display_name}</div>
                 <div style={{fontSize:12,color:C.sub,marginTop:3}}>{player.position} · {player.tier} · SQ-{player.id}</div>
@@ -1098,7 +1098,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
             <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:48,marginBottom:12}}>🔲</div>
               <div style={{fontSize:17,fontWeight:900,color:C.text,marginBottom:6}}>Scan Player QR</div>
-              <div style={{fontSize:13,color:C.sub,marginBottom:20,lineHeight:1.7}}>ให้ผู้เล่นเปิด SQUAD HUB<br/>แล้วโชว์ "QR ของฉัน"</div>
+              <div style={{fontSize:13,color:C.sub,marginBottom:20,lineHeight:1.7}}>ให้ผู้เล่นเปิด SQUAD HUB<br/>แล้วโชว์ "Player QR"</div>
               <Btn onClick={()=>setShowScanner(true)} style={{width:"100%",padding:14,fontSize:15}}>🔲 เปิดกล้องสแกน</Btn>
             </div>
             {liveSlots.length>0&&(
