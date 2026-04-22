@@ -1362,7 +1362,7 @@ export default function SquadPartner() {
       if(data)setSlots(data.map(s=>({
         id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
         field:s.field_number||1,
-        name:s.notes||s.match_id?`MATCH #SQ-${s.match_id}`:"",
+        name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
         players:0,total:s.max_players||14,
         source:s.match_id?"platform":s.status==="offline"?"offline":"platform",
         status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
