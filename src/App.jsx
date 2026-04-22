@@ -167,13 +167,19 @@ const QRScanner = ({onResult,onClose}) => {
     const loadAndStart = async()=>{
       try {
         // Load jsQR
-        await new Promise((res,rej)=>{
-          if(window.jsQR){res();return;}
-          const s=document.createElement("script");
-          s.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
-          s.onload=res; s.onerror=rej;
-          document.head.appendChild(s);
-        });
+       await new Promise((res,rej)=>{
+  if(window.jsQR){res();return;}
+  const existing=document.querySelector('script[src*="jsqr"]');
+  if(existing){
+    existing.addEventListener("load",res);
+    existing.addEventListener("error",rej);
+    return;
+  }
+  const s=document.createElement("script");
+  s.src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+  s.onload=res; s.onerror=rej;
+  document.head.appendChild(s);
+});
         if(!active)return;
         // Start camera
         const stream = await navigator.mediaDevices.getUserMedia({
