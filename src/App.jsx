@@ -1293,10 +1293,10 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       {showOwnerPin&&<OwnerPin onSuccess={()=>{setShowOwnerPin(false);setTimeout(()=>{setMOwner(true);setMTab("finance");},50);}} onCancel={()=>setShowOwnerPin(false)}/>}
       {showScanner&&<QRScanner key={scanKey} onResult={id=>{
         const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
-        setShowScanner(false);
         setScanId(parsed);
+        setShowScanner(false);
       }} onClose={()=>setShowScanner(false)}/>}
-      {!showScanner&&scanId&&<ScanResult playerId={scanId}
+      {scanId&&<ScanResult playerId={scanId}
         onClose={()=>setScanId(null)}
         onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setShowScanner(true);}}
       />}
