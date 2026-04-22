@@ -229,14 +229,17 @@ const ScanResult = ({playerId,onClose}) => {
             <div style={{fontSize:52,marginBottom:12}}>✅</div>
             <div style={{fontSize:18,fontWeight:900,color:C.green,marginBottom:6}}>Check-in สำเร็จ!</div>
             <div style={{fontSize:13,color:C.sub,marginBottom:20}}>{player.display_name} เข้าสนามแล้ว</div>
-            <Btn ghost onClick={onClose} style={{width:"100%"}}>สแกนคนต่อไป</Btn>
+            <Btn ghost onClick={()=>{setDone(false);onClose();}} style={{width:"100%"}}>สแกนคนต่อไป</Btn>
           </div>
         ):(
           <>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
-              <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase"}}>ผลการสแกน</div>
-              <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:12,padding:"3px 9px",borderRadius:6,cursor:"pointer"}}>✕</button>
-            </div>
+           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+  <div style={{display:"flex",alignItems:"center",gap:8}}>
+    <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:13,padding:"5px 10px",borderRadius:6,cursor:"pointer"}}>← กลับ</button>
+    <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase"}}>ผลการสแกน</div>
+  </div>
+  <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"none",color:C.sub,fontSize:12,padding:"3px 9px",borderRadius:6,cursor:"pointer"}}>✕</button>
+</div>
             <div style={{display:"flex",alignItems:"center",gap:14,padding:14,background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,marginBottom:14}}>
               <div style={{width:52,height:52,clipPath:"polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)",background:"rgba(139,92,246,0.15)",border:"2px solid #8b5cf6",overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#8b5cf6"}}>
   {player.avatar_url
@@ -1235,7 +1238,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
   const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
   setScanId(parsed);
 }} onClose={()=>setShowScanner(false)}/>}
-{scanId&&<ScanResult playerId={scanId} onClose={()=>{setScanId(null);setShowScanner(false);}}/>}
+{scanId&&<ScanResult playerId={scanId} onClose={()=>{setScanId(null);setShowScanner(true);}}/>}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
     </div>
   );
