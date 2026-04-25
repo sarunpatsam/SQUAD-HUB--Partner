@@ -1339,62 +1339,197 @@ const MatchEndTab = ({match,onDone,slots}) => {
 };
 
 /* ═══ FINANCE ═══ */
-const FinanceTab = ({venue}) => {
+const FinanceTab = ({venue,todaySlots=[]}) => {
   const [shopSales,setShopSales]=useState(0);
   const [shopHistory,setShopHistory]=useState([]);
+  const [weeklyShop,setWeeklyShop]=useState([0,0,0,0,0,0,0]);
+  const [monthlyShop,setMonthlyShop]=useState(Array(4).fill(0));
+  const [activeTab,setActiveTab]=useState("overview");
+  const [chartRange,setChartRange]=useState("week"); // week | month
+
   useEffect(()=>{
     if(!venue?.id)return;
     const today=new Date().toISOString().split("T")[0];
+    const monthStart=today.slice(0,7)+"-01";
     supabase.from("shop_sales").select("*").eq("venue_id",venue.id)
-      .gte("created_at",today).order("created_at",{ascending:false})
+      .gte("created_at",monthStart).order("created_at",{ascending:false})
       .then(({data})=>{
-        if(data){
-          setShopSales(data.reduce((a,s)=>a+(s.total||0),0));
-          setShopHistory(data);
-        }
+        if(!data)return;
+        const todayData=data.filter(s=>s.created_at.startsWith(today));
+        setShopSales(todayData.reduce((a,s)=>a+(s.total||0),0));
+        setShopHistory(todayData);
+        // Weekly: last 7 days
+        const w=Array(7).fill(0);
+        data.forEach(s=>{
+          const d=new Date(s.created_at);
+          const diff=Math.floor((new Date()-d)/86400000);
+          if(diff<7)w[6-diff]=(w[6-diff]||0)+(s.total||0);
+        });
+        setWeeklyShop(w);
+        // Monthly: 4 weeks
+        const m=Array(4).fill(0);
+        data.forEach(s=>{
+          const d=new Date(s.created_at);
+          const week=Math.floor((new Date().getDate()-d.getDate())/7);
+          if(week>=0&&week<4)m[3-week]=(m[3-week]||0)+(s.total||0);
+        });
+        setMonthlyShop(m);
       });
   },[venue]);
+
+  const slotRevenue=0; // รอ booking จริง Season 2
+  const totalToday=shopSales+slotRevenue;
+  const totalWeek=weeklyShop.reduce((a,b)=>a+b,0);
+  const totalMonth=monthlyShop.reduce((a,b)=>a+b,0);
+  const commissionSaved=Math.round(totalMonth*0.05);
+
+  const chartData=chartRange==="week"?weeklyShop:monthlyShop;
+  const chartMax=Math.max(...chartData,1);
+  const chartLabels=chartRange==="week"
+    ?["จ","อ","พ","พฤ","ศ","ส","วันนี้"]
+    :["สัปดาห์ 1","สัปดาห์ 2","สัปดาห์ 3","สัปดาห์ 4"];
+
+  const inp2={background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",fontSize:11,color:C.text,outline:"none",cursor:"pointer"};
+
   return(
     <div>
-      {/* Season 1 Banner */}
-      <div style={{background:"rgba(16,185,129,0.06)",border:`1px solid rgba(16,185,129,0.25)`,borderRadius:14,padding:"14px 18px",marginBottom:18,display:"flex",alignItems:"center",gap:12}}>
-        <div style={{fontSize:28}}>🎉</div>
-        <div>
-          <div style={{fontSize:14,fontWeight:900,color:C.green,marginBottom:2}}>Season 1 — ฟรี Commission 100%</div>
-          <div style={{fontSize:12,color:C.sub,lineHeight:1.6}}>ช่วง Early Access นี้ SQUAD HUB ไม่เก็บ commission ใดๆ<br/>รายได้ทั้งหมดเป็นของสนามเต็มๆ</div>
+      {/* S1 Banner */}
+      <div style={{background:"rgba(16,185,129,0.06)",border:`1px solid rgba(16,185,129,0.22)`,borderRadius:14,padding:"12px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:24}}>🎉</div>
+          <div>
+            <div style={{fontSize:13,fontWeight:900,color:C.green}}>Season 1 — Founding Partner</div>
+            <div style={{fontSize:10,color:C.sub,marginTop:2}}>Early Access · ฟรี commission ตลอด Season 1</div>
+          </div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:9,color:C.muted,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Commission ปกติ</div>
+          <div style={{display:"flex",alignItems:"baseline",gap:6,justifyContent:"flex-end"}}>
+            <span style={{fontSize:22,fontWeight:900,color:C.green}}>ฟรี</span>
+            <span style={{fontSize:12,color:C.muted,textDecoration:"line-through"}}>5%</span>
+          </div>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12,marginBottom:22}}>
-        <MetricCard icon="🛒" value={`฿${shopSales.toLocaleString()}`} label="รายได้ร้านค้าวันนี้" foot={`${shopHistory.length} transaction`} footColor={C.amber}/>
-        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px"}}>
-  <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>Commission Rate</div>
-  <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:6}}>
-    <div style={{fontSize:26,fontWeight:900,color:C.green}}>ฟรี</div>
-    <div style={{fontSize:13,color:C.muted,textDecoration:"line-through"}}>5%</div>
-  </div>
-  <div style={{background:"rgba(16,185,129,0.08)",border:`1px solid rgba(16,185,129,0.2)`,borderRadius:7,padding:"5px 10px",display:"inline-block"}}>
-    <div style={{fontSize:10,fontWeight:800,color:C.green}}>⚡ Season 1 Early Access</div>
-  </div>
-  <div style={{fontSize:11,color:C.sub,marginTop:8,lineHeight:1.6}}>ปกติ 5% · ฟรีตลอด Season 1<br/>เริ่มเก็บ Season 2 เป็นต้นไป</div>
-</div>
+
+      {/* Top metrics */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}}>
+        <MetricCard icon="📅" value={`฿${totalToday.toLocaleString()}`} label="รายได้วันนี้" foot="รวมทุกช่องทาง" footColor={C.green} hi/>
+        <MetricCard icon="📊" value={`฿${totalWeek.toLocaleString()}`} label="อาทิตย์นี้" foot="7 วันล่าสุด" footColor={C.amber}/>
+        <MetricCard icon="📈" value={`฿${totalMonth.toLocaleString()}`} label="เดือนนี้" foot={new Date().toLocaleDateString("th-TH",{month:"long"})}/>
       </div>
-      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:14}}>
-        <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>ประวัติร้านค้าวันนี้</div>
-        {shopHistory.length===0?(
-          <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"16px 0"}}>ยังไม่มี transaction วันนี้</div>
-        ):shopHistory.map((s,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<shopHistory.length-1?`1px solid rgba(255,255,255,0.04)`:"none"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:700,color:C.text}}>{s.items?.map(i=>`${i.name}×${i.qty}`).join(", ")||"—"}</div>
-              <div style={{fontSize:10,color:C.sub,marginTop:2}}>{s.payment_method==="cash"?"💵 Cash":"📱 QR PromptPay"} · {new Date(s.created_at).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}</div>
-            </div>
-            <div style={{fontSize:15,fontWeight:900,color:C.green}}>฿{(s.total||0).toLocaleString()}</div>
-          </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
+        <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${todaySlots.filter(s=>s.status==="live").length} LIVE`}/>
+        <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="รวมทุก slot"/>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[{id:"overview",l:"📊 Overview"},{id:"shop",l:"🛒 ร้านค้า"},{id:"slot",l:"🏟️ Slot"}].map(t=>(
+          <button key={t.id} onClick={()=>setActiveTab(t.id)}
+            style={{padding:"7px 16px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",border:`1px solid ${activeTab===t.id?C.borderHi:C.border}`,background:activeTab===t.id?C.greenDim:"transparent",color:activeTab===t.id?C.green:C.sub,transition:"all .15s"}}>
+            {t.l}
+          </button>
         ))}
       </div>
-      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,textAlign:"center"}}>
-        <div style={{fontSize:13,color:C.sub}}>รายได้จาก slot booking จะแสดงเมื่อ Season 2 เปิดตัว</div>
-      </div>
+
+      {/* Chart (shop + slot) with range selector */}
+      {(activeTab==="shop"||activeTab==="slot")&&(
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase"}}>
+              {activeTab==="shop"?"รายได้ร้านค้า":"รายได้ Slot"}
+            </div>
+            <select value={chartRange} onChange={e=>setChartRange(e.target.value)} style={inp2}>
+              <option value="week">รายอาทิตย์</option>
+              <option value="month">รายเดือน</option>
+            </select>
+          </div>
+          <div style={{display:"flex",alignItems:"flex-end",gap:5,height:80,marginBottom:6}}>
+            {chartData.map((v,i)=>(
+              <div key={i} style={{flex:1,borderRadius:"3px 3px 0 0",background:i===chartData.length-1?C.green:C.greenBr,opacity:i===chartData.length-1?1:0.3+(v/chartMax)*0.5,height:`${Math.max((v/chartMax)*100,4)}%`,transition:"height .3s"}}/>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:5}}>
+            {chartLabels.map((l,i)=>(
+              <div key={i} style={{flex:1,fontSize:8,color:i===chartLabels.length-1?C.green:C.muted,textAlign:"center",fontWeight:i===chartLabels.length-1?800:400}}>{l}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Overview Tab */}
+      {activeTab==="overview"&&(
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            {[
+              {l:"Utilization",v:todaySlots.length>0?`${Math.round(todaySlots.filter(s=>s.status!=="available").length/todaySlots.length*100)}%`:"—",sub:`${venue?.field_count||3} สนาม`,pct:todaySlots.length>0?Math.round(todaySlots.filter(s=>s.status!=="available").length/todaySlots.length*100):0},
+              {l:"Active Players",v:todaySlots.reduce((a,s)=>a+(s.players||0),0),sub:"วันนี้",pct:Math.min(todaySlots.reduce((a,s)=>a+(s.players||0),0)/100*100,100)},
+              {l:"Slot เดือนนี้",v:todaySlots.length,sub:"Platform + Offline",pct:50},
+              {l:"Commission Saved",v:`฿${commissionSaved.toLocaleString()}`,sub:"S1 ประหยัดได้",pct:100},
+            ].map((item,i)=>(
+              <div key={i} style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px"}}>
+                <div style={{fontSize:9,fontWeight:700,color:C.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>{item.l}</div>
+                <div style={{fontSize:20,fontWeight:900,color:C.text,marginBottom:3}}>{item.v}</div>
+                <div style={{fontSize:10,color:C.sub,marginBottom:6}}>{item.sub}</div>
+                <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${item.pct}%`,background:`linear-gradient(90deg,#059669,${C.green})`,borderRadius:99}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:18}}>
+            <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>Commission Tracker — Season 1</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div><div style={{fontSize:13,fontWeight:800,color:C.text}}>ประหยัดได้เดือนนี้</div><div style={{fontSize:10,color:C.sub,marginTop:2}}>5% จาก ฿{totalMonth.toLocaleString()}</div></div>
+              <div style={{fontSize:22,fontWeight:900,color:C.green}}>฿{commissionSaved.toLocaleString()}</div>
+            </div>
+            <div style={{fontSize:10,color:C.muted,lineHeight:1.7,padding:"10px",background:"rgba(16,185,129,0.04)",borderRadius:8}}>Founding Partner rate 5% จะถูก lock ไว้เมื่อ Season 2 เริ่มต้น · สนามที่เข้าร่วมตอนนี้ได้ rate พิเศษตลอดไป</div>
+          </div>
+        </div>
+      )}
+
+      {/* Shop Tab */}
+      {activeTab==="shop"&&(
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:18}}>
+          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>ประวัติร้านค้าวันนี้</div>
+          {shopHistory.length===0?(
+            <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"16px 0"}}>ยังไม่มี transaction วันนี้</div>
+          ):shopHistory.map((s,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<shopHistory.length-1?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>{s.items?.map(i=>`${i.name}×${i.qty}`).join(", ")||"—"}</div>
+                <div style={{fontSize:10,color:C.sub,marginTop:2}}>{s.payment_method==="cash"?"💵 Cash":"📱 QR PromptPay"} · {new Date(s.created_at).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}</div>
+              </div>
+              <div style={{fontSize:15,fontWeight:900,color:C.green}}>฿{(s.total||0).toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Slot Tab */}
+      {activeTab==="slot"&&(
+        <div>
+          <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>Slot วันนี้</div>
+            {todaySlots.length===0?(
+              <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"16px 0"}}>ยังไม่มี slot วันนี้</div>
+            ):todaySlots.map((s,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<todaySlots.length-1?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:s.status==="live"?C.green:C.text}}>{s.name||"ว่าง"}</div>
+                  <div style={{fontSize:10,color:C.sub,marginTop:2}}>{s.time} · สนาม {s.field} · {s.players||0}/{s.total||14} คน</div>
+                </div>
+                <div style={{fontSize:11,fontWeight:800,color:s.status==="live"?C.green:s.source==="platform"?C.greenBr:C.sub}}>
+                  {s.status==="live"?"● LIVE":s.source==="platform"?"Platform":"Offline"}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:"rgba(16,185,129,0.04)",border:`1px solid rgba(16,185,129,0.1)`,borderRadius:12,padding:"12px 16px",fontSize:11,color:C.muted,lineHeight:1.7}}>
+            รายได้ slot จะแสดงเมื่อ booking ผ่าน platform จริง · Season 2
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1823,7 +1958,7 @@ export default function SquadPartner() {
           )}
           {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")} slots={todaySlots}/>}
           {tab==="shop"&&<ShopTab venueId={venue?.id} ownerUnlocked={ownerUnlocked}/>}
-          {tab==="finance"&&<FinanceTab venue={venue}/>}
+          {tab==="finance"&&<FinanceTab venue={venue} todaySlots={todaySlots}/>}
           {tab==="booking"&&(
             <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24,maxWidth:600}}>
               <div style={{fontSize:11,fontWeight:800,letterSpacing:2,color:C.green,textTransform:"uppercase",marginBottom:6}}>การจองทั้งหมด</div>
