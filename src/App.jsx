@@ -47,7 +47,7 @@ const MetricCard = ({icon,value,label,foot,footColor,hi}) => (
 );
 
 /* ═══ LOGIN ═══ */
-const LOGO_URL = "https://jnkjjcglzfpyqkpvjcsl.supabase.co/storage/v1/object/public/assets/logo.png";
+const LOGO_URL = "/logo.png";
 
 const SplashScreen = ({onDone}) => {
   useEffect(()=>{setTimeout(onDone,2200);},[]);
@@ -1356,10 +1356,17 @@ const FinanceTab = ({venue}) => {
   },[venue]);
   return(
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12,marginBottom:22}}>
-        <MetricCard icon="💰" value={`฿${(venue?.wallet_balance||0).toLocaleString()}`} label="ยอดคงเหลือ" foot="พร้อมถอน" footColor={C.green} hi/>
+      {/* Season 1 Banner */}
+      <div style={{background:"rgba(16,185,129,0.06)",border:`1px solid rgba(16,185,129,0.25)`,borderRadius:14,padding:"14px 18px",marginBottom:18,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:28}}>🎉</div>
+        <div>
+          <div style={{fontSize:14,fontWeight:900,color:C.green,marginBottom:2}}>Season 1 — ฟรี Commission 100%</div>
+          <div style={{fontSize:12,color:C.sub,lineHeight:1.6}}>ช่วง Early Access นี้ SQUAD HUB ไม่เก็บ commission ใดๆ<br/>รายได้ทั้งหมดเป็นของสนามเต็มๆ</div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12,marginBottom:22}}>
         <MetricCard icon="🛒" value={`฿${shopSales.toLocaleString()}`} label="รายได้ร้านค้าวันนี้" foot={`${shopHistory.length} transaction`} footColor={C.amber}/>
-        <MetricCard icon="📊" value="5%" label="Commission rate" foot="Founding Partner" footColor={C.amber}/>
+        <MetricCard icon="📊" value="S1 ฟรี" label="Commission rate" foot="Founding Partner" footColor={C.green}/>
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:14}}>
         <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>ประวัติร้านค้าวันนี้</div>
@@ -1376,8 +1383,7 @@ const FinanceTab = ({venue}) => {
         ))}
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,textAlign:"center"}}>
-        <div style={{fontSize:13,color:C.sub,marginBottom:16}}>ประวัติรายได้สนามจะแสดงเมื่อมีข้อมูลจริง</div>
-        <Btn ghost style={{margin:"0 auto",width:"fit-content"}}>ถอนเงิน →</Btn>
+        <div style={{fontSize:13,color:C.sub}}>รายได้จาก slot booking จะแสดงเมื่อ Season 2 เปิดตัว</div>
       </div>
     </div>
   );
@@ -1559,14 +1565,16 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
           mOwner ? (
             <div>
               <div style={{fontSize:11,fontWeight:800,color:C.amber,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>👑 รายได้ & กระเป๋า</div>
+              <div style={{background:"rgba(16,185,129,0.06)",border:`1px solid rgba(16,185,129,0.25)`,borderRadius:12,padding:"12px 14px",marginBottom:14}}>
+                <div style={{fontSize:13,fontWeight:900,color:C.green,marginBottom:3}}>🎉 Season 1 — ฟรี Commission</div>
+                <div style={{fontSize:11,color:C.sub,lineHeight:1.5}}>ช่วง Early Access ไม่เก็บ commission ใดๆ รายได้เต็มๆ ของสนาม</div>
+              </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-                <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:14,padding:"16px 14px"}}>
-                  <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>ยอดคงเหลือ</div>
-                  <div style={{fontSize:22,fontWeight:900,color:C.green}}>฿{(venue?.wallet_balance||0).toLocaleString()}</div>
-                  <div style={{fontSize:11,color:C.sub,marginTop:4}}>พร้อมถอน</div>
-                </div>
                 <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 14px"}}>
                   <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Commission rate</div>
+                  <div style={{fontSize:22,fontWeight:900,color:C.green}}>ฟรี</div>
+                  <div style={{fontSize:11,color:C.sub,marginTop:4}}>Founding Partner S1</div>
+                </div>
                   <div style={{fontSize:22,fontWeight:900,color:C.amber}}>5%</div>
                   <div style={{fontSize:11,color:C.sub,marginTop:4}}>Founding Partner</div>
                 </div>
