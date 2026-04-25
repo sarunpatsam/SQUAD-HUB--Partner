@@ -47,6 +47,27 @@ const MetricCard = ({icon,value,label,foot,footColor,hi}) => (
 );
 
 /* ═══ LOGIN ═══ */
+const LOGO_URL = "https://jnkjjcglzfpyqkpvjcsl.supabase.co/storage/v1/object/public/assets/logo.png";
+
+const SplashScreen = ({onDone}) => {
+  useEffect(()=>{setTimeout(onDone,2200);},[]);
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',system-ui,sans-serif",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(16,185,129,0.07) 0%,transparent 70%)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
+      <div style={{width:140,height:140,borderRadius:28,overflow:"hidden",marginBottom:24,boxShadow:"0 0 60px rgba(16,185,129,0.2)",border:"1px solid rgba(16,185,129,0.15)"}}>
+        <img src={LOGO_URL} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
+      </div>
+      <div style={{fontSize:28,fontWeight:900,color:C.text,letterSpacing:-.5}}>SQUAD <span style={{color:C.green}}>HUB</span></div>
+      <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:3,textTransform:"uppercase",marginTop:6,marginBottom:36}}>Partner Portal</div>
+      <div style={{display:"flex",gap:7}}>
+        <div style={{width:20,height:6,borderRadius:3,background:C.green}}/>
+        <div style={{width:6,height:6,borderRadius:"50%",background:"rgba(16,185,129,0.3)"}}/>
+        <div style={{width:6,height:6,borderRadius:"50%",background:"rgba(16,185,129,0.3)"}}/>
+      </div>
+    </div>
+  );
+};
+
 const VenueLogin = ({onSuccess}) => {
   const [email,setEmail]=useState(()=>localStorage.getItem("sq_partner_email")||"");
   const [password,setPassword]=useState(()=>localStorage.getItem("sq_partner_pw")||"");
@@ -75,11 +96,17 @@ const VenueLogin = ({onSuccess}) => {
       onSuccess(v);
     } catch{setError("เกิดข้อผิดพลาด");setLoading(false);}
   };
- const inp = {width:"100%",background:C.surface2,border:`1px solid ${error?C.red:C.border}`,borderRadius:10,padding:"12px 14px",fontSize:15,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
+  const inp={width:"100%",background:C.surface2,border:`1px solid ${error?C.red:C.border}`,borderRadius:10,padding:"12px 14px",fontSize:15,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
   return (
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',system-ui,sans-serif",padding:16}}>
       <div style={{width:"100%",maxWidth:400}}>
-        <div style={{display:"flex",justifyContent:"center",marginBottom:28}}><Wordmark/></div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:28}}>
+          <div style={{width:64,height:64,borderRadius:14,overflow:"hidden",marginBottom:14,border:"1px solid rgba(16,185,129,0.2)",boxShadow:"0 0 30px rgba(16,185,129,0.1)"}}>
+            <img src={LOGO_URL} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>
+          </div>
+          <div style={{fontSize:20,fontWeight:900,color:C.text}}>SQUAD <span style={{color:C.green}}>HUB</span></div>
+          <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:2.5,textTransform:"uppercase",marginTop:4}}>Partner Portal</div>
+        </div>
         <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:20,padding:28}}>
           <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:4}}>เข้าสู่ระบบ</div>
           <div style={{fontSize:13,color:C.sub,marginBottom:22}}>Venue Admin Portal</div>
@@ -606,16 +633,73 @@ const SHOP_ITEMS=[
   {id:8,name:"ผ้าเช็ดตัว",price:150,icon:"🏊",cat:"gear"},
   {id:9,name:"เสื้อ SQUAD HUB",price:490,icon:"👕",cat:"merch"},
 ];
-const ShopTab = ({ownerUnlocked}) => {
+const ShopTab = ({venueId,ownerUnlocked}) => {
+  const [items,setItems]=useState([]);
   const [cart,setCart]=useState({});
   const [cat,setCat]=useState("all");
   const [payMode,setPayMode]=useState(null);
   const [done,setDone]=useState(false);
+  const [view,setView]=useState("pos"); // pos | inventory
+  const [editItem,setEditItem]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [salesTotal,setSalesTotal]=useState(0);
+
+  useEffect(()=>{
+    if(!venueId)return;
+    supabase.from("shop_items").select("*").eq("venue_id",venueId).order("category").order("name")
+      .then(({data})=>{
+        if(data&&data.length>0) setItems(data);
+        else setItems(SHOP_ITEMS.map(i=>({...i,venue_id:venueId,category:i.cat,stock:-1})));
+      });
+    supabase.from("shop_sales").select("total").eq("venue_id",venueId)
+      .gte("created_at",new Date().toISOString().split("T")[0])
+      .then(({data})=>{
+        if(data) setSalesTotal(data.reduce((a,s)=>a+(s.total||0),0));
+      });
+  },[venueId]);
+
   const add=(id)=>setCart(c=>({...c,[id]:(c[id]||0)+1}));
   const rem=(id)=>setCart(c=>{const n={...c};n[id]>1?n[id]--:delete n[id];return n;});
-  const items=cat==="all"?SHOP_ITEMS:SHOP_ITEMS.filter(i=>i.cat===cat);
-  const total=Object.entries(cart).reduce((s,[id,q])=>{const it=SHOP_ITEMS.find(i=>i.id===+id);return s+(it?.price||0)*q;},0);
+  const filteredItems=cat==="all"?items:items.filter(i=>i.category===cat||i.cat===cat);
+  const total=Object.entries(cart).reduce((s,[id,q])=>{const it=items.find(i=>String(i.id)===String(id));return s+(it?.price||0)*q;},0);
   const cartCount=Object.values(cart).reduce((a,b)=>a+b,0);
+
+  const handleCheckout = async(method) => {
+    setSaving(true);
+    try {
+      const cartItems=Object.entries(cart).map(([id,qty])=>{
+        const it=items.find(i=>String(i.id)===String(id));
+        return {id,name:it?.name,price:it?.price,qty};
+      });
+      await supabase.from("shop_sales").insert({
+        venue_id:venueId,items:cartItems,total,payment_method:method,
+      });
+      setSalesTotal(p=>p+total);
+      setDone(true);setSaving(false);
+    } catch(e){console.error(e);setSaving(false);}
+  };
+
+  const handleSaveItem = async() => {
+    if(!editItem)return;setSaving(true);
+    try {
+      if(editItem.id&&!String(editItem.id).startsWith("mock")){
+        await supabase.from("shop_items").update({
+          name:editItem.name,price:editItem.price,stock:editItem.stock,category:editItem.category
+        }).eq("id",editItem.id);
+        setItems(prev=>prev.map(i=>String(i.id)===String(editItem.id)?{...i,...editItem}:i));
+      } else {
+        const {data}=await supabase.from("shop_items").insert({
+          venue_id:venueId,name:editItem.name,price:editItem.price,
+          stock:editItem.stock||0,category:editItem.category||"general",
+        }).select().single();
+        if(data) setItems(prev=>[...prev.filter(i=>String(i.id)!==String(editItem.id)),data]);
+      }
+      setEditItem(null);setSaving(false);
+    } catch(e){console.error(e);setSaving(false);}
+  };
+
+  const cats=[{id:"all",l:"ทั้งหมด"},{id:"drink",l:"🥤 เครื่องดื่ม"},{id:"food",l:"🍌 อาหาร"},{id:"gear",l:"⚽ อุปกรณ์"},{id:"merch",l:"👕 Merchandise"},{id:"general",l:"📦 ทั่วไป"}];
+
   if(done)return(
     <div style={{maxWidth:500,background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:28,textAlign:"center"}}>
       <div style={{fontSize:52,marginBottom:12}}>✅</div>
@@ -624,60 +708,186 @@ const ShopTab = ({ownerUnlocked}) => {
       <Btn ghost onClick={()=>{setCart({});setPayMode(null);setDone(false);}} style={{width:"100%"}}>ขายต่อ</Btn>
     </div>
   );
+
   return(
-    <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16}}>
-      <div>
-        <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-          {[{id:"all",l:"ทั้งหมด"},{id:"drink",l:"🥤 เครื่องดื่ม"},{id:"food",l:"🍌 อาหาร"},{id:"gear",l:"⚽ อุปกรณ์"},{id:"merch",l:"👕 Merchandise"}].map(c=>(
-            <button key={c.id} onClick={()=>setCat(c.id)}
-              style={{padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:800,border:`1px solid ${cat===c.id?C.borderHi:C.border}`,background:cat===c.id?C.greenDim:"transparent",color:cat===c.id?C.green:C.sub,cursor:"pointer"}}>
-              {c.l}
-            </button>
-          ))}
+    <div>
+      {/* Header + Sales today */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={()=>setView("pos")} style={{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:800,border:`1px solid ${view==="pos"?C.borderHi:C.border}`,background:view==="pos"?C.greenDim:"transparent",color:view==="pos"?C.green:C.sub,cursor:"pointer"}}>🛒 POS</button>
+          <button onClick={()=>setView("inventory")} style={{padding:"8px 16px",borderRadius:8,fontSize:13,fontWeight:800,border:`1px solid ${view==="inventory"?C.borderHi:C.border}`,background:view==="inventory"?C.greenDim:"transparent",color:view==="inventory"?C.green:C.sub,cursor:"pointer"}}>📦 จัดการสินค้า</button>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
-          {items.map(item=>(
-            <div key={item.id} onClick={()=>add(item.id)}
-              style={{background:C.bg2,border:`1px solid ${cart[item.id]?C.borderHi:C.border}`,borderRadius:14,padding:"16px 12px",textAlign:"center",cursor:"pointer",transition:"all .15s"}}>
-              <div style={{fontSize:32,marginBottom:8}}>{item.icon}</div>
-              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>{item.name}</div>
-              <div style={{fontSize:14,fontWeight:900,color:C.green}}>฿{item.price}</div>
-              {cart[item.id]>0&&(
-                <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-                  <button onClick={e=>{e.stopPropagation();rem(item.id);}} style={{width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:`1px solid ${C.border}`,color:C.text,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                  <span style={{fontSize:15,fontWeight:900,color:C.greenBr}}>{cart[item.id]}</span>
-                  <button onClick={e=>{e.stopPropagation();add(item.id);}} style={{width:24,height:24,borderRadius:"50%",background:C.greenDim,border:`1px solid ${C.borderHi}`,color:C.green,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
-                </div>
-              )}
-            </div>
-          ))}
+        <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:10,padding:"8px 16px",textAlign:"right"}}>
+          <div style={{fontSize:9,color:C.sub,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>รายได้ร้านค้าวันนี้</div>
+          <div style={{fontSize:18,fontWeight:900,color:C.green}}>฿{salesTotal.toLocaleString()}</div>
         </div>
       </div>
-      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:18,position:"sticky",top:20}}>
-        <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:14}}>
-          🛒 ตะกร้า {cartCount>0&&<span style={{fontSize:12,color:C.green}}>({cartCount} รายการ)</span>}
-        </div>
-        {cartCount===0?(
-          <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13}}>ยังไม่มีสินค้า<br/>กดสินค้าเพื่อเพิ่ม</div>
-        ):(
-          <div style={{marginBottom:14}}>
-            {Object.entries(cart).map(([id,q])=>{
-              const it=SHOP_ITEMS.find(i=>i.id===+id);
-              if(!it)return null;
-              return(
-                <div key={id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid rgba(255,255,255,0.04)`}}>
-                  <div style={{fontSize:13,color:C.text}}>{it.icon} {it.name} ×{q}</div>
-                  <div style={{fontSize:13,fontWeight:800,color:C.green}}>฿{(it.price*q).toLocaleString()}</div>
+
+      {view==="pos"&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16}}>
+          <div>
+            <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+              {cats.map(c=>(
+                <button key={c.id} onClick={()=>setCat(c.id)}
+                  style={{padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:800,border:`1px solid ${cat===c.id?C.borderHi:C.border}`,background:cat===c.id?C.greenDim:"transparent",color:cat===c.id?C.green:C.sub,cursor:"pointer"}}>
+                  {c.l}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+              {filteredItems.map(item=>(
+                <div key={item.id} onClick={()=>add(item.id)}
+                  style={{background:C.bg2,border:`1px solid ${cart[item.id]?C.borderHi:C.border}`,borderRadius:14,padding:"16px 12px",textAlign:"center",cursor:"pointer",transition:"all .15s"}}>
+                  <div style={{fontSize:32,marginBottom:8}}>{item.icon||"📦"}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>{item.name}</div>
+                  <div style={{fontSize:14,fontWeight:900,color:C.green}}>฿{item.price}</div>
+                  {item.stock>=0&&<div style={{fontSize:10,color:item.stock<5?C.amber:C.muted,marginTop:2}}>คงเหลือ {item.stock}</div>}
+                  {cart[item.id]>0&&(
+                    <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                      <button onClick={e=>{e.stopPropagation();rem(item.id);}} style={{width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:`1px solid ${C.border}`,color:C.text,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                      <span style={{fontSize:15,fontWeight:900,color:C.greenBr}}>{cart[item.id]}</span>
+                      <button onClick={e=>{e.stopPropagation();add(item.id);}} style={{width:24,height:24,borderRadius:"50%",background:C.greenDim,border:`1px solid ${C.borderHi}`,color:C.green,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:12,marginTop:4}}>
-              <div style={{fontSize:14,fontWeight:800,color:C.text}}>รวม</div>
-              <div style={{fontSize:22,fontWeight:900,color:C.green}}>฿{total.toLocaleString()}</div>
+              ))}
             </div>
           </div>
-        )}
-        {cartCount>0&&!payMode&&(
+          <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:18,position:"sticky",top:20}}>
+            <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:14}}>
+              🛒 ตะกร้า {cartCount>0&&<span style={{fontSize:12,color:C.green}}>({cartCount} รายการ)</span>}
+            </div>
+            {cartCount===0?(
+              <div style={{textAlign:"center",padding:"24px 0",color:C.muted,fontSize:13}}>ยังไม่มีสินค้า<br/>กดสินค้าเพื่อเพิ่ม</div>
+            ):(
+              <div style={{marginBottom:14}}>
+                {Object.entries(cart).map(([id,q])=>{
+                  const it=items.find(i=>String(i.id)===String(id));
+                  if(!it)return null;
+                  return(
+                    <div key={id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid rgba(255,255,255,0.04)`}}>
+                      <div>
+                        <div style={{fontSize:13,color:C.text}}>{it.icon||"📦"} {it.name}</div>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
+                          <button onClick={()=>rem(id)} style={{width:20,height:20,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:`1px solid ${C.border}`,color:C.text,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                          <span style={{fontSize:12,fontWeight:800,color:C.greenBr}}>×{q}</span>
+                          <button onClick={()=>add(id)} style={{width:20,height:20,borderRadius:"50%",background:C.greenDim,border:`1px solid ${C.borderHi}`,color:C.green,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                        </div>
+                      </div>
+                      <div style={{fontSize:13,fontWeight:800,color:C.green}}>฿{(it.price*q).toLocaleString()}</div>
+                    </div>
+                  );
+                })}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:12,marginTop:4,borderTop:`1px solid rgba(16,185,129,0.15)`}}>
+                  <div style={{fontSize:14,fontWeight:800,color:C.text}}>รวม</div>
+                  <div style={{fontSize:22,fontWeight:900,color:C.green}}>฿{total.toLocaleString()}</div>
+                </div>
+              </div>
+            )}
+            {cartCount>0&&!payMode&&(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <button onClick={()=>handleCheckout("cash")} disabled={saving}
+                  style={{padding:"11px",borderRadius:9,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                  💵 Cash
+                </button>
+                <button onClick={()=>setPayMode("qr")} disabled={saving}
+                  style={{padding:"11px",borderRadius:9,border:`1px solid rgba(96,165,250,0.4)`,background:"rgba(96,165,250,0.08)",color:"#60a5fa",fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                  📱 QR
+                </button>
+              </div>
+            )}
+            {payMode==="qr"&&(
+              <div style={{textAlign:"center"}}>
+                <div style={{background:"#fff",borderRadius:12,padding:12,width:140,height:140,margin:"0 auto 10px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <svg viewBox="0 0 40 40" width="116" height="116">
+                    <rect x="1" y="1" width="12" height="12" rx="1.5" fill="none" stroke="#000" strokeWidth="2"/>
+                    <rect x="3.5" y="3.5" width="7" height="7" rx=".5" fill="#000"/>
+                    <rect x="27" y="1" width="12" height="12" rx="1.5" fill="none" stroke="#000" strokeWidth="2"/>
+                    <rect x="29.5" y="3.5" width="7" height="7" rx=".5" fill="#000"/>
+                    <rect x="1" y="27" width="12" height="12" rx="1.5" fill="none" stroke="#000" strokeWidth="2"/>
+                    <rect x="3.5" y="29.5" width="7" height="7" rx=".5" fill="#000"/>
+                    <rect x="16" y="2" width="3" height="3" fill="#000"/><rect x="20" y="2" width="3" height="3" fill="#000"/>
+                    <rect x="16" y="6" width="3" height="3" fill="#000"/><rect x="21" y="10" width="3" height="3" fill="#000"/>
+                    <rect x="2" y="16" width="3" height="3" fill="#000"/><rect x="8" y="16" width="3" height="3" fill="#000"/>
+                    <rect x="16" y="16" width="3" height="3" fill="#000"/><rect x="22" y="16" width="3" height="3" fill="#000"/>
+                    <rect x="30" y="16" width="3" height="3" fill="#000"/><rect x="2" y="21" width="3" height="3" fill="#000"/>
+                    <rect x="16" y="21" width="3" height="3" fill="#000"/><rect x="27" y="21" width="3" height="3" fill="#000"/>
+                    <rect x="16" y="27" width="3" height="3" fill="#000"/><rect x="22" y="27" width="3" height="3" fill="#000"/>
+                    <rect x="30" y="30" width="3" height="3" fill="#000"/><rect x="22" y="35" width="3" height="3" fill="#000"/>
+                  </svg>
+                </div>
+                <div style={{fontSize:12,color:C.sub,marginBottom:10}}>PromptPay · ฿{total.toLocaleString()}</div>
+                <button onClick={()=>handleCheckout("qr")} disabled={saving}
+                  style={{width:"100%",padding:11,borderRadius:9,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,fontSize:13,fontWeight:800,cursor:"pointer",marginBottom:6}}>
+                  ✅ รับเงินแล้ว
+                </button>
+                <Btn ghost onClick={()=>setPayMode(null)} style={{width:"100%",fontSize:12}}>ยกเลิก</Btn>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view==="inventory"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:14,fontWeight:900,color:C.text}}>รายการสินค้าทั้งหมด</div>
+            <button onClick={()=>setEditItem({id:`mock-${Date.now()}`,name:"",price:0,stock:0,category:"general",icon:"📦"})}
+              style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,fontSize:12,fontWeight:800,cursor:"pointer"}}>
+              + เพิ่มสินค้าใหม่
+            </button>
+          </div>
+          <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,overflow:"hidden"}}>
+            {items.map((item,i)=>(
+              <div key={item.id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 16px",borderBottom:i<items.length-1?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+                <div style={{fontSize:24,flexShrink:0}}>{item.icon||"📦"}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:800,color:C.text}}>{item.name}</div>
+                  <div style={{fontSize:11,color:C.sub,marginTop:2}}>{item.category||item.cat} · stock: {item.stock<0?"ไม่จำกัด":item.stock}</div>
+                </div>
+                <div style={{fontSize:16,fontWeight:900,color:C.green,marginRight:12}}>฿{item.price}</div>
+                <button onClick={()=>setEditItem({...item})}
+                  style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${C.border}`,background:"transparent",color:C.sub,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                  แก้ไข
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {editItem&&(
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}}>
+              <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:20,padding:24,width:"100%",maxWidth:360}}>
+                <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:16}}>{editItem.id?.toString().startsWith("mock")?"เพิ่มสินค้าใหม่":"แก้ไขสินค้า"}</div>
+                {[{k:"name",l:"ชื่อสินค้า",t:"text"},{k:"price",l:"ราคา ฿",t:"number"},{k:"stock",l:"จำนวน stock (-1 = ไม่จำกัด)",t:"number"}].map(f=>(
+                  <div key={f.k} style={{marginBottom:12}}>
+                    <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>{f.l}</div>
+                    <input type={f.t} value={editItem[f.k]||""} onChange={e=>setEditItem(p=>({...p,[f.k]:f.t==="number"?parseInt(e.target.value)||0:e.target.value}))}
+                      style={{width:"100%",background:"#091510",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,color:C.text,outline:"none",fontFamily:"inherit"}}/>
+                  </div>
+                ))}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>หมวดหมู่</div>
+                  <select value={editItem.category||editItem.cat||"general"} onChange={e=>setEditItem(p=>({...p,category:e.target.value}))}
+                    style={{width:"100%",background:"#091510",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,color:C.text,outline:"none"}}>
+                    <option value="drink">🥤 เครื่องดื่ม</option>
+                    <option value="food">🍌 อาหาร</option>
+                    <option value="gear">⚽ อุปกรณ์</option>
+                    <option value="merch">👕 Merchandise</option>
+                    <option value="general">📦 ทั่วไป</option>
+                  </select>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <Btn ghost onClick={()=>setEditItem(null)} style={{width:"100%"}}>ยกเลิก</Btn>
+                  <Btn onClick={handleSaveItem} disabled={saving||!editItem.name} style={{width:"100%"}}>{saving?"กำลังบันทึก...":"บันทึก"}</Btn>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
             <button onClick={()=>setPayMode("cash")} style={{padding:"10px",borderRadius:8,border:`1px solid rgba(251,191,36,0.4)`,background:`rgba(251,191,36,0.08)`,color:C.amber,fontSize:13,fontWeight:800,cursor:"pointer"}}>💵 เงินสด</button>
             <button onClick={()=>setPayMode("qr")} style={{padding:"10px",borderRadius:8,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,fontSize:13,fontWeight:800,cursor:"pointer"}}>📱 QR Pay</button>
@@ -1153,19 +1363,49 @@ const MatchEndTab = ({match,onDone,slots}) => {
 };
 
 /* ═══ FINANCE ═══ */
-const FinanceTab = ({venue}) => (
-  <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12,marginBottom:22}}>
-      <MetricCard icon="💰" value={`฿${(venue?.wallet_balance||0).toLocaleString()}`} label="ยอดคงเหลือ" foot="พร้อมถอน" footColor={C.green} hi/>
-      <MetricCard icon="📈" value="—" label="รายได้เดือนนี้" foot="เร็วๆนี้"/>
-      <MetricCard icon="📊" value="5%" label="Commission rate" foot="Founding Partner" footColor={C.amber}/>
+const FinanceTab = ({venue}) => {
+  const [shopSales,setShopSales]=useState(0);
+  const [shopHistory,setShopHistory]=useState([]);
+  useEffect(()=>{
+    if(!venue?.id)return;
+    const today=new Date().toISOString().split("T")[0];
+    supabase.from("shop_sales").select("*").eq("venue_id",venue.id)
+      .gte("created_at",today).order("created_at",{ascending:false})
+      .then(({data})=>{
+        if(data){
+          setShopSales(data.reduce((a,s)=>a+(s.total||0),0));
+          setShopHistory(data);
+        }
+      });
+  },[venue]);
+  return(
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12,marginBottom:22}}>
+        <MetricCard icon="💰" value={`฿${(venue?.wallet_balance||0).toLocaleString()}`} label="ยอดคงเหลือ" foot="พร้อมถอน" footColor={C.green} hi/>
+        <MetricCard icon="🛒" value={`฿${shopSales.toLocaleString()}`} label="รายได้ร้านค้าวันนี้" foot={`${shopHistory.length} transaction`} footColor={C.amber}/>
+        <MetricCard icon="📊" value="5%" label="Commission rate" foot="Founding Partner" footColor={C.amber}/>
+      </div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>ประวัติร้านค้าวันนี้</div>
+        {shopHistory.length===0?(
+          <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"16px 0"}}>ยังไม่มี transaction วันนี้</div>
+        ):shopHistory.map((s,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<shopHistory.length-1?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:C.text}}>{s.items?.map(i=>`${i.name}×${i.qty}`).join(", ")||"—"}</div>
+              <div style={{fontSize:10,color:C.sub,marginTop:2}}>{s.payment_method==="cash"?"💵 Cash":"📱 QR PromptPay"} · {new Date(s.created_at).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}</div>
+            </div>
+            <div style={{fontSize:15,fontWeight:900,color:C.green}}>฿{(s.total||0).toLocaleString()}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,textAlign:"center"}}>
+        <div style={{fontSize:13,color:C.sub,marginBottom:16}}>ประวัติรายได้สนามจะแสดงเมื่อมีข้อมูลจริง</div>
+        <Btn ghost style={{margin:"0 auto",width:"fit-content"}}>ถอนเงิน →</Btn>
+      </div>
     </div>
-    <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,textAlign:"center"}}>
-      <div style={{fontSize:13,color:C.sub,marginBottom:16}}>ประวัติการเงินจะแสดงเมื่อมีข้อมูลจริง</div>
-      <Btn ghost style={{margin:"0 auto",width:"fit-content"}}>ถอนเงิน →</Btn>
-    </div>
-  </div>
-);
+  );
+};
 
 /* ═══ MOBILE ═══ */
 const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
@@ -1422,6 +1662,7 @@ export default function SquadPartner() {
   const [isMobile,setIsMobile]=useState(window.innerWidth<768);
   const [calDate,setCalDate]=useState(new Date());
   const [restoring,setRestoring]=useState(true);
+  const [showSplash,setShowSplash]=useState(true);
 
   useEffect(()=>{
     const fn=()=>setIsMobile(window.innerWidth<768);
@@ -1492,9 +1733,15 @@ export default function SquadPartner() {
   const navPrev=()=>{const d=new Date(calDate);calView==="day"?d.setDate(d.getDate()-1):calView==="week"?d.setDate(d.getDate()-7):d.setMonth(d.getMonth()-1);setCalDate(d);};
   const navNext=()=>{const d=new Date(calDate);calView==="day"?d.setDate(d.getDate()+1):calView==="week"?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);setCalDate(d);};
 
+  if(showSplash)return<SplashScreen onDone={()=>setShowSplash(false)}/>;
   if(restoring)return(
-    <div style={{minHeight:"100vh",background:"#050f0a",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{fontSize:14,color:"#3d6b52",fontWeight:700,letterSpacing:1}}>กำลังโหลด...</div>
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:56,height:56,borderRadius:12,overflow:"hidden",margin:"0 auto 16px",border:"1px solid rgba(16,185,129,0.2)"}}>
+          <img src={LOGO_URL} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+        </div>
+        <div style={{fontSize:12,color:"#3d6b52",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>กำลังโหลด...</div>
+      </div>
     </div>
   );
   if(!unlocked)return<VenueLogin onSuccess={v=>{setVenue(v);setUnlocked(true);}}/>;
@@ -1584,7 +1831,7 @@ export default function SquadPartner() {
             </div>
           )}
           {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")} slots={todaySlots}/>}
-          {tab==="shop"&&<ShopTab ownerUnlocked={ownerUnlocked}/>}
+          {tab==="shop"&&<ShopTab venueId={venue?.id} ownerUnlocked={ownerUnlocked}/>}
           {tab==="finance"&&<FinanceTab venue={venue}/>}
           {tab==="booking"&&(
             <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24,maxWidth:600}}>
