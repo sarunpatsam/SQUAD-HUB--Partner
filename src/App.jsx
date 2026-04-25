@@ -1575,9 +1575,6 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
                   <div style={{fontSize:22,fontWeight:900,color:C.green}}>ฟรี</div>
                   <div style={{fontSize:11,color:C.sub,marginTop:4}}>Founding Partner S1</div>
                 </div>
-                  <div style={{fontSize:22,fontWeight:900,color:C.amber}}>5%</div>
-                  <div style={{fontSize:11,color:C.sub,marginTop:4}}>Founding Partner</div>
-                </div>
               </div>
               <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 14px",marginBottom:12}}>
                 <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>รายได้วันนี้</div>
