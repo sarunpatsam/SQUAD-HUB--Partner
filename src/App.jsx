@@ -727,11 +727,13 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
   const [loading,setLoading]=useState(false);
   const [done,setDone]=useState(null);
   const [confirm,setConfirm]=useState(false);
+  const [fieldNum,setFieldNum]=useState(selected?.fieldNum||1);
 
   useEffect(()=>{
     if(!selected) return;
     if(selected.time) setTime(selected.time);
     if(selected.endTime) setEndTime(selected.endTime);
+    if(selected.fieldNum) setFieldNum(selected.fieldNum);
     if(selected.slot) setMode("manage");
     else setMode("create");
   },[selected]);
@@ -750,10 +752,10 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
     setLoading(true);
     try {
       const slotDate = selected?.date || calDate?.toISOString().split("T")[0] || new Date().toISOString().split("T")[0];
-      const fieldNum = parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1;
+      const fn = fieldNum||parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1;
       const roomName = type==="platform"
-        ? `MATCH #SQ-${slotDate.replace(/-/g,"")}-F${fieldNum}`
-        : (name||"");
+        ? `MATCH #SQ-${slotDate.replace(/-/g,"")}-F${fn}`
+        : (name?.trim()||"Offline Booking");
       const {error} = await supabase.from("slots").insert({
         venue_id: venueId,
         date: slotDate,
@@ -763,7 +765,7 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
         max_players: maxPlayers[matchType]||14,
         match_type: matchType,
         status: type==="platform"?"open":"offline",
-        field_number: fieldNum,
+        field_number: fn,
         notes: roomName,
       });
       if(error) throw error;
@@ -970,8 +972,8 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
           </div>
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>สนามที่</div>
-            <select style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-              {[1,2,3].map(n=>(
+            <select value={fieldNum} onChange={e=>setFieldNum(parseInt(e.target.value))} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+              {[1,2,3,4,5].map(n=>(
                 <option key={n} style={{background:"#091510"}} value={n}>สนาม {n}</option>
               ))}
             </select>
@@ -1419,37 +1421,64 @@ export default function SquadPartner() {
   const [scanId,setScanId]=useState(null);
   const [isMobile,setIsMobile]=useState(window.innerWidth<768);
   const [calDate,setCalDate]=useState(new Date());
+  const [restoring,setRestoring]=useState(true);
 
   useEffect(()=>{
     const fn=()=>setIsMobile(window.innerWidth<768);
     window.addEventListener("resize",fn);return()=>window.removeEventListener("resize",fn);
   },[]);
 
+  // Auto-restore session on refresh
+  useEffect(()=>{
+    (async()=>{
+      try {
+        const {data:{session}}=await supabase.auth.getSession();
+        if(session?.user?.email){
+          const {data:v}=await supabase.from("venues").select("*")
+            .eq("owner_email",session.user.email).single();
+          if(v){setVenue(v);setUnlocked(true);}
+        }
+      } catch(e){console.error(e);}
+      setRestoring(false);
+    })();
+  },[]);
+
+  const fetchSlots = async(venueId)=>{
+    const today=new Date().toISOString().split("T")[0];
+    const {data}=await supabase.from("slots").select("*").eq("venue_id",venueId).gte("date",today).order("date").order("start_time");
+    if(data)setSlots(data.map(s=>({
+      id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
+      endTime:s.end_time?.slice(0,5)||null,
+      field:s.field_number||1,
+      name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
+      players:0,total:s.max_players||14,
+      source:s.status==="offline"?"offline":s.match_id?"platform":"platform",
+      status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
+      venue_id:venueId,amount:0,
+    })));
+  };
+
   useEffect(()=>{
     if(!venue)return;
-    (async()=>{
-      const today=new Date().toISOString().split("T")[0];
-      const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
-      if(data)setSlots(data.map(s=>({
-        id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
-        endTime:s.end_time?.slice(0,5)||null,
-        field:s.field_number||1,
-        name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
-        players:0,total:s.max_players||14,
-        source:s.status==="offline"?"offline":s.match_id?"platform":"platform",
-        status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
-        venue_id:venue.id,
-        amount:0,
-      })));
-    })();
+    fetchSlots(venue.id);
   },[venue]);
 
   const handleLogout=async()=>{await supabase.auth.signOut();setUnlocked(false);setVenue(null);setSlots([]);setOwnerUnlocked(false);};
   const calDateStr=calDate.toISOString().split("T")[0];
   const todaySlots=slots.filter(s=>s.date===calDateStr);
   const todayStr=new Date().toISOString().split("T")[0];
-  const liveCount=slots.filter(s=>s.date===todayStr&&s.status==="live").length;
-  const fields=Array.from({length:venue?.field_count||3});
+  const todaySlotsReal=slots.filter(s=>s.date===todayStr);
+  const liveCount=todaySlotsReal.filter(s=>s.status==="live").length;
+
+  // คำนวณ field_count จาก slots จริง ถ้าไม่มีใช้ venue.field_count
+  const maxFieldFromSlots=slots.length>0?Math.max(...slots.map(s=>s.field||1)):0;
+  const fieldCount=Math.max(maxFieldFromSlots,venue?.field_count||3);
+  const fields=Array.from({length:fieldCount});
+
+  // Utilization คำนวณจาก slot วันที่เลือก
+  const activeSlots=todaySlots.filter(s=>s.status!=="available"&&s.status!=="blocked"&&s.status!=="cancelled");
+  const totalPossibleSlots=fieldCount*(todaySlots.length>0?Math.ceil(todaySlots.length/fieldCount):1);
+  const utilPct=todaySlots.length>0?Math.round(activeSlots.length/todaySlots.length*100):0;
 
   // week start (Monday)
   const weekStart=new Date(calDate);
@@ -1463,6 +1492,11 @@ export default function SquadPartner() {
   const navPrev=()=>{const d=new Date(calDate);calView==="day"?d.setDate(d.getDate()-1):calView==="week"?d.setDate(d.getDate()-7):d.setMonth(d.getMonth()-1);setCalDate(d);};
   const navNext=()=>{const d=new Date(calDate);calView==="day"?d.setDate(d.getDate()+1):calView==="week"?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);setCalDate(d);};
 
+  if(restoring)return(
+    <div style={{minHeight:"100vh",background:"#050f0a",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{fontSize:14,color:"#3d6b52",fontWeight:700,letterSpacing:1}}>กำลังโหลด...</div>
+    </div>
+  );
   if(!unlocked)return<VenueLogin onSuccess={v=>{setVenue(v);setUnlocked(true);}}/>;
   if(isMobile)return<MobileApp venue={venue} slots={todaySlots} ownerUnlocked={ownerUnlocked} onLogout={handleLogout}/>;
 
@@ -1525,7 +1559,7 @@ export default function SquadPartner() {
             <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${liveCount} กำลัง live`} footColor={liveCount>0?C.green:C.sub} hi/>
             <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จากทุก slot"/>
             <MetricCard icon="💰" value={`฿${todaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}`} label="รายได้วันนี้" foot="รวมทุกช่องทาง"/>
-            <MetricCard icon="📊" value={todaySlots.length>0?`${Math.round(todaySlots.filter(s=>s.status!=="available").length/todaySlots.length*100)}%`:"—"} label="Utilization" foot={`${venue?.field_count||1} สนาม`}/>
+            <MetricCard icon="📊" value={todaySlots.length>0?`${utilPct}%`:"—"} label="Utilization" foot={`${fieldCount} สนาม`}/>
           </div>
 
           {tab==="calendar"&&(
@@ -1545,20 +1579,7 @@ export default function SquadPartner() {
                 <div>
                   {calView==="day"&&<DayView fields={fields} slots={todaySlots} date={calDate} onSelectSlot={setSelectedSlot}/>}
                 </div>
-                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} calDate={calDate} onSave={data=>console.log("save",data)} onRefresh={async()=>{
-  const today=new Date().toISOString().split("T")[0];
-  const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
-  if(data)setSlots(data.map(s=>({
-    id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
-    endTime:s.end_time?.slice(0,5)||null,
-    field:s.field_number||1,
-    name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
-    players:0,total:s.max_players||14,
-    source:s.status==="offline"?"offline":s.match_id?"platform":"platform",
-    status:s.status==="open"?"available":s.status==="full"?"full":s.status==="live"?"live":s.status==="blocked"?"blocked":s.status==="cancelled"?"cancelled":"available",
-    venue_id:venue.id,amount:0,
-  })));
-}}/>}
+                {calView==="day"&&<BookingPanel selected={selectedSlot} venueId={venue?.id} calDate={calDate} onSave={data=>console.log("save",data)} onRefresh={()=>fetchSlots(venue.id)}/>}
               </div>
             </div>
           )}
