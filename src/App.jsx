@@ -1818,6 +1818,7 @@ export default function SquadPartner() {
         </main>
       </div>
 
+      {showPin&&<OwnerPin onSuccess={()=>{setOwnerUnlocked(true);setShowPin(false);setTab("finance");}} onCancel={()=>setShowPin(false)}/>}
       {showScanner&&<QRScanner onResult={id=>{
   const parsed=id.startsWith("SQ:")?id.replace("SQ:",""):id;
   setScanId(parsed);
