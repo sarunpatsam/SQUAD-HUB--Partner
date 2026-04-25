@@ -888,30 +888,6 @@ const ShopTab = ({venueId,ownerUnlocked}) => {
     </div>
   );
 };
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-            <button onClick={()=>setPayMode("cash")} style={{padding:"10px",borderRadius:8,border:`1px solid rgba(251,191,36,0.4)`,background:`rgba(251,191,36,0.08)`,color:C.amber,fontSize:13,fontWeight:800,cursor:"pointer"}}>💵 เงินสด</button>
-            <button onClick={()=>setPayMode("qr")} style={{padding:"10px",borderRadius:8,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,fontSize:13,fontWeight:800,cursor:"pointer"}}>📱 QR Pay</button>
-          </div>
-        )}
-        {payMode&&(
-          <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:10,padding:12,marginBottom:10,textAlign:"center"}}>
-            <div style={{fontSize:12,fontWeight:800,color:C.green,marginBottom:4}}>{payMode==="cash"?"รับเงินสด":"สแกน QR PromptPay"}</div>
-            <div style={{fontSize:22,fontWeight:900,color:C.text}}>฿{total.toLocaleString()}</div>
-          </div>
-        )}
-        {payMode&&<button onClick={()=>setDone(true)} style={{width:"100%",padding:12,borderRadius:10,border:"none",background:`linear-gradient(135deg,#059669,${C.green})`,color:"#001a0d",fontSize:14,fontWeight:900,cursor:"pointer"}}>✅ รับเงินแล้ว</button>}
-        {cartCount>0&&<button onClick={()=>setCart({})} style={{width:"100%",marginTop:8,padding:"8px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.muted,fontSize:12,fontWeight:700,cursor:"pointer"}}>ล้างตะกร้า</button>}
-        {ownerUnlocked&&(
-          <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid rgba(255,255,255,0.06)`}}>
-            <div style={{fontSize:9,fontWeight:800,color:C.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>ยอดขายวันนี้ (Owner)</div>
-            <div style={{fontSize:20,fontWeight:900,color:C.amber}}>฿1,240</div>
-            <div style={{fontSize:11,color:C.sub,marginTop:2}}>18 รายการ</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 /* ═══ BOOKING PANEL ═══ */
 const MOCK_PLAYERS = [
