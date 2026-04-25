@@ -367,13 +367,23 @@ const SlotBlock = ({slot,onClick}) => {
       <span style={{fontSize:12,color:C.muted,fontWeight:700}}>+ ว่าง</span>
     </div>
   );
-  const colors = {live:{bg:"rgba(16,185,129,0.16)",border:"rgba(16,185,129,0.55)",name:C.greenBr},platform:{bg:"rgba(16,185,129,0.08)",border:"rgba(16,185,129,0.28)",name:C.text},offline:{bg:"rgba(255,255,255,0.04)",border:"rgba(255,255,255,0.12)",name:C.text},full:{bg:"rgba(239,68,68,0.07)",border:"rgba(239,68,68,0.25)",name:C.text}};
+  const colors = {
+    live:{bg:"rgba(16,185,129,0.16)",border:"rgba(16,185,129,0.55)",name:C.greenBr},
+    platform:{bg:"rgba(16,185,129,0.08)",border:"rgba(16,185,129,0.28)",name:C.text},
+    offline:{bg:"rgba(255,255,255,0.04)",border:"rgba(255,255,255,0.12)",name:C.text},
+    full:{bg:"rgba(239,68,68,0.07)",border:"rgba(239,68,68,0.25)",name:C.text},
+    blocked:{bg:"rgba(239,68,68,0.12)",border:"rgba(239,68,68,0.45)",name:"#ef4444"},
+    cancelled:{bg:"rgba(239,68,68,0.06)",border:"rgba(239,68,68,0.2)",name:C.muted},
+    available:{bg:"rgba(16,185,129,0.08)",border:"rgba(16,185,129,0.28)",name:C.text},
+  };
   const s = colors[slot.status]||colors.platform;
   return (
     <div onClick={onClick} style={{height:"100%",borderRadius:8,padding:"7px 9px",cursor:"pointer",background:s.bg,border:`1px solid ${s.border}`,transition:"all .15s"}}>
-      <div style={{fontSize:11,fontWeight:800,color:s.name,lineHeight:1.3,marginBottom:2}}>{slot.name}</div>
+      <div style={{fontSize:11,fontWeight:800,color:s.name,lineHeight:1.3,marginBottom:2}}>
+        {slot.status==="blocked"?"🚫 บล็อก":slot.status==="cancelled"?"❌ ยกเลิก":slot.name}
+      </div>
       <div style={{fontSize:9,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"} · {slot.players||0}/{slot.total||14}</div>
-      {slot.status!=="full"&&(
+      {slot.status!=="full"&&slot.status!=="blocked"&&slot.status!=="cancelled"&&(
         <div style={{display:"flex",gap:2,marginTop:4,flexWrap:"wrap"}}>
           {Array.from({length:Math.min(slot.total||14,14)}).map((_,i)=>(
             <div key={i} style={{width:5,height:5,borderRadius:"50%",background:i<(slot.players||0)?C.green:"rgba(255,255,255,0.1)"}}/>
@@ -381,6 +391,7 @@ const SlotBlock = ({slot,onClick}) => {
         </div>
       )}
       {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
+      {slot.status==="blocked"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(239,68,68,0.15)",color:"#ef4444",border:`1px solid rgba(239,68,68,0.35)`,display:"inline-block",marginTop:3}}>● BLOCKED</div>}
     </div>
   );
 };
@@ -682,7 +693,7 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
       const fieldNum = parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1;
       const roomName = type==="platform"
         ? `MATCH #SQ-${slotDate.replace(/-/g,"")}-F${fieldNum}`
-        : (name||"");
+        : (name?.trim()||"Offline Booking");
       const {error} = await supabase.from("slots").insert({
         venue_id: venueId,
         date: slotDate,
@@ -854,9 +865,15 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
             ))}
           </div>
           {type==="offline"&&(
-            <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:14,lineHeight:1.6}}>
-              ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
-            </div>
+            <>
+              <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:10,lineHeight:1.6}}>
+                ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
+              </div>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ชื่อห้อง / ผู้จอง</div>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="เช่น คุณบอย เหมาสนาม, ทีมออฟฟิศ" style={{...inp,marginBottom:0}}/>
+              </div>
+            </>
           )}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <div>
