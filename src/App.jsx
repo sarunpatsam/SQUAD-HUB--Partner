@@ -1366,7 +1366,17 @@ const FinanceTab = ({venue}) => {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12,marginBottom:22}}>
         <MetricCard icon="🛒" value={`฿${shopSales.toLocaleString()}`} label="รายได้ร้านค้าวันนี้" foot={`${shopHistory.length} transaction`} footColor={C.amber}/>
-        <MetricCard icon="📊" value="S1 ฟรี" label="Commission rate" foot="Founding Partner" footColor={C.green}/>
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px"}}>
+  <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>Commission Rate</div>
+  <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:6}}>
+    <div style={{fontSize:26,fontWeight:900,color:C.green}}>ฟรี</div>
+    <div style={{fontSize:13,color:C.muted,textDecoration:"line-through"}}>5%</div>
+  </div>
+  <div style={{background:"rgba(16,185,129,0.08)",border:`1px solid rgba(16,185,129,0.2)`,borderRadius:7,padding:"5px 10px",display:"inline-block"}}>
+    <div style={{fontSize:10,fontWeight:800,color:C.green}}>⚡ Season 1 Early Access</div>
+  </div>
+  <div style={{fontSize:11,color:C.sub,marginTop:8,lineHeight:1.6}}>ปกติ 5% · ฟรีตลอด Season 1<br/>เริ่มเก็บ Season 2 เป็นต้นไป</div>
+</div>
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:22,marginBottom:14}}>
         <div style={{fontSize:13,fontWeight:800,color:C.green,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>ประวัติร้านค้าวันนี้</div>
