@@ -367,23 +367,13 @@ const SlotBlock = ({slot,onClick}) => {
       <span style={{fontSize:12,color:C.muted,fontWeight:700}}>+ ว่าง</span>
     </div>
   );
-  const colors = {
-    live:{bg:"rgba(16,185,129,0.16)",border:"rgba(16,185,129,0.55)",name:C.greenBr},
-    platform:{bg:"rgba(16,185,129,0.08)",border:"rgba(16,185,129,0.28)",name:C.text},
-    offline:{bg:"rgba(255,255,255,0.04)",border:"rgba(255,255,255,0.12)",name:C.text},
-    full:{bg:"rgba(239,68,68,0.07)",border:"rgba(239,68,68,0.25)",name:C.text},
-    blocked:{bg:"rgba(239,68,68,0.12)",border:"rgba(239,68,68,0.45)",name:"#ef4444"},
-    cancelled:{bg:"rgba(239,68,68,0.06)",border:"rgba(239,68,68,0.2)",name:C.muted},
-    available:{bg:"rgba(16,185,129,0.08)",border:"rgba(16,185,129,0.28)",name:C.text},
-  };
+  const colors = {live:{bg:"rgba(16,185,129,0.16)",border:"rgba(16,185,129,0.55)",name:C.greenBr},platform:{bg:"rgba(16,185,129,0.08)",border:"rgba(16,185,129,0.28)",name:C.text},offline:{bg:"rgba(255,255,255,0.04)",border:"rgba(255,255,255,0.12)",name:C.text},full:{bg:"rgba(239,68,68,0.07)",border:"rgba(239,68,68,0.25)",name:C.text}};
   const s = colors[slot.status]||colors.platform;
   return (
     <div onClick={onClick} style={{height:"100%",borderRadius:8,padding:"7px 9px",cursor:"pointer",background:s.bg,border:`1px solid ${s.border}`,transition:"all .15s"}}>
-      <div style={{fontSize:11,fontWeight:800,color:s.name,lineHeight:1.3,marginBottom:2}}>
-        {slot.status==="blocked"?"🚫 บล็อก":slot.status==="cancelled"?"❌ ยกเลิก":slot.name}
-      </div>
+      <div style={{fontSize:11,fontWeight:800,color:s.name,lineHeight:1.3,marginBottom:2}}>{slot.name}</div>
       <div style={{fontSize:9,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"} · {slot.players||0}/{slot.total||14}</div>
-      {slot.status!=="full"&&slot.status!=="blocked"&&slot.status!=="cancelled"&&(
+      {slot.status!=="full"&&(
         <div style={{display:"flex",gap:2,marginTop:4,flexWrap:"wrap"}}>
           {Array.from({length:Math.min(slot.total||14,14)}).map((_,i)=>(
             <div key={i} style={{width:5,height:5,borderRadius:"50%",background:i<(slot.players||0)?C.green:"rgba(255,255,255,0.1)"}}/>
@@ -391,7 +381,6 @@ const SlotBlock = ({slot,onClick}) => {
         </div>
       )}
       {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
-      {slot.status==="blocked"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(239,68,68,0.15)",color:"#ef4444",border:`1px solid rgba(239,68,68,0.35)`,display:"inline-block",marginTop:3}}>● BLOCKED</div>}
     </div>
   );
 };
@@ -405,47 +394,110 @@ const MOCK_SLOTS = [
   {id:6,date:"TODAY",time:"20:00",field:2,name:"MATCH #SQ-0827",players:14,total:14,source:"platform",status:"full",amount:2100},
 ];
 
+const ROW_HEIGHT = 72;
+
 const DayView = ({fields,slots,date,onSelectSlot}) => {
-  const [period,setPeriod]=useState("night"); // day | night
+  const [period,setPeriod]=useState("night");
   const times = period==="day" ? TIMES_DAY : TIMES_NIGHT;
-  const today = new Date().toISOString().split("T")[0];
-  const isToday = date.toISOString().split("T")[0]===today;
   const displaySlots = slots.length===0 ? MOCK_SLOTS.map(s=>({...s,date:date.toISOString().split("T")[0]})) : slots;
   const fieldNames = fields.map((_,i)=>`สนาม ${i+1}`);
+  const [dragStart,setDragStart]=useState(null); // {fi, timeIdx}
+  const [dragEnd,setDragEnd]=useState(null);     // {fi, timeIdx}
+
+  const getSlotDuration = (slot) => {
+    if(!slot?.endTime&&!slot?.end_time) return 1;
+    const start = slot.time||slot.start_time||"00:00";
+    const end = slot.endTime||slot.end_time||"00:00";
+    const [sh,sm]=start.split(":").map(Number);
+    const [eh,em]=end.split(":").map(Number);
+    const diff = ((eh*60+em)-(sh*60+sm))/60;
+    return diff>0?diff:1;
+  };
+
+  const renderedCells = new Set();
+
   return (
     <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden"}}>
-      {/* Day/Night toggle */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:`1px solid rgba(255,255,255,0.06)`}}>
         <div style={{display:"flex",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
-          <button onClick={()=>setPeriod("day")}
-            style={{padding:"6px 16px",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",background:period==="day"?"rgba(251,191,36,0.15)":"transparent",color:period==="day"?C.amber:C.sub,transition:"all .15s"}}>
-            ☀️ กลางวัน
-          </button>
-          <button onClick={()=>setPeriod("night")}
-            style={{padding:"6px 16px",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",background:period==="night"?C.greenDim:"transparent",color:period==="night"?C.green:C.sub,transition:"all .15s"}}>
-            🌙 กลางคืน
-          </button>
+          <button onClick={()=>setPeriod("day")} style={{padding:"6px 16px",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",background:period==="day"?"rgba(251,191,36,0.15)":"transparent",color:period==="day"?C.amber:C.sub,transition:"all .15s"}}>☀️ กลางวัน</button>
+          <button onClick={()=>setPeriod("night")} style={{padding:"6px 16px",fontSize:12,fontWeight:800,border:"none",cursor:"pointer",background:period==="night"?C.greenDim:"transparent",color:period==="night"?C.green:C.sub,transition:"all .15s"}}>🌙 กลางคืน</button>
         </div>
-        <div style={{fontSize:11,color:C.muted}}>
-          {period==="day"?"06:00 – 17:00":"18:00 – 00:00"}
-        </div>
+        <div style={{fontSize:11,color:C.muted}}>{period==="day"?"06:00 – 17:00":"18:00 – 00:00"}</div>
       </div>
-      {/* Header */}
       <div style={{display:"grid",gridTemplateColumns:`56px ${fieldNames.map(()=>"1fr").join(" ")}`,borderBottom:`1px solid rgba(255,255,255,0.06)`}}>
         <div style={{padding:"10px 8px"}}/>
         {fieldNames.map((f,i)=>(
           <div key={i} style={{padding:"10px 12px",fontSize:11,fontWeight:800,letterSpacing:1.5,color:C.muted,textTransform:"uppercase",borderLeft:`1px solid rgba(255,255,255,0.04)`}}>⚽ {f}</div>
         ))}
       </div>
-      {/* Rows */}
-      {times.map(time=>(
-        <div key={time} style={{display:"grid",gridTemplateColumns:`56px ${fieldNames.map(()=>"1fr").join(" ")}`,borderBottom:`1px solid rgba(255,255,255,0.04)`,minHeight:72}}>
+      {times.map((time,timeIdx)=>(
+        <div key={time} style={{display:"grid",gridTemplateColumns:`56px ${fieldNames.map(()=>"1fr").join(" ")}`,borderBottom:`1px solid rgba(255,255,255,0.04)`,minHeight:ROW_HEIGHT}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:C.muted,fontStyle:"italic"}}>{time}</div>
           {fieldNames.map((_,fi)=>{
+            const cellKey = `${fi}-${timeIdx}`;
+            if(renderedCells.has(cellKey)) return <div key={fi} style={{borderLeft:`1px solid rgba(255,255,255,0.04)`}}/>;
             const slot = displaySlots.find(s=>s.time===time&&s.field===fi+1);
+            const dur = slot ? Math.max(1,Math.round(getSlotDuration(slot))) : 1;
+            if(slot && dur>1){
+              for(let d=1;d<dur;d++) renderedCells.add(`${fi}-${timeIdx+d}`);
+            }
+            const isDragging = dragStart&&dragEnd&&dragStart.fi===fi&&
+              timeIdx>=Math.min(dragStart.timeIdx,dragEnd.timeIdx)&&
+              timeIdx<=Math.max(dragStart.timeIdx,dragEnd.timeIdx);
+            const isDragStart = dragStart&&dragStart.fi===fi&&dragStart.timeIdx===timeIdx;
+            const dragDur = dragStart&&dragEnd&&dragStart.fi===fi ? Math.abs(dragEnd.timeIdx-dragStart.timeIdx)+1 : 1;
+
             return (
-              <div key={fi} style={{borderLeft:`1px solid rgba(255,255,255,0.04)`,padding:6}}>
-                <SlotBlock slot={slot} onClick={()=>onSelectSlot({field:`สนาม ${fi+1}`,time,slot})}/>
+              <div key={fi}
+                style={{borderLeft:`1px solid rgba(255,255,255,0.04)`,padding:6,position:"relative",minHeight:ROW_HEIGHT,userSelect:"none"}}
+                onMouseDown={()=>{if(!slot){setDragStart({fi,timeIdx});setDragEnd({fi,timeIdx});}}}
+                onMouseEnter={()=>{if(dragStart&&dragStart.fi===fi)setDragEnd({fi,timeIdx});}}
+                onMouseUp={()=>{
+                  if(dragStart&&dragStart.fi===fi){
+                    const startIdx=Math.min(dragStart.timeIdx,dragEnd?.timeIdx??dragStart.timeIdx);
+                    const endIdx=Math.max(dragStart.timeIdx,dragEnd?.timeIdx??dragStart.timeIdx);
+                    const startTime=times[startIdx];
+                    const endTime=times[endIdx+1]||"00:00";
+                    onSelectSlot({field:`สนาม ${fi+1}`,time:startTime,endTime,slot:null,fieldNum:fi+1});
+                    setDragStart(null);setDragEnd(null);
+                  }
+                }}
+              >
+                {slot?(
+                  <div onClick={()=>onSelectSlot({field:`สนาม ${fi+1}`,time,slot,fieldNum:fi+1})}
+                    style={{
+                      position:"absolute",top:4,left:4,right:4,
+                      height:`calc(${dur*ROW_HEIGHT}px - 8px)`,
+                      zIndex:2,
+                      borderRadius:8,padding:"7px 9px",cursor:"pointer",
+                      background:slot.status==="live"?"rgba(16,185,129,0.18)":slot.status==="blocked"?"rgba(239,68,68,0.12)":slot.status==="cancelled"?"rgba(239,68,68,0.06)":slot.source==="platform"?"rgba(16,185,129,0.1)":"rgba(255,255,255,0.04)",
+                      border:`1px solid ${slot.status==="live"?"rgba(16,185,129,0.55)":slot.status==="blocked"?"rgba(239,68,68,0.45)":slot.status==="cancelled"?"rgba(239,68,68,0.2)":slot.source==="platform"?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.12)"}`,
+                    }}>
+                    <div style={{fontSize:11,fontWeight:800,color:slot.status==="blocked"?"#ef4444":slot.status==="live"?C.greenBr:C.text,lineHeight:1.3,marginBottom:2}}>
+                      {slot.status==="blocked"?"🚫 บล็อก":slot.status==="cancelled"?"❌ ยกเลิก":slot.name||"—"}
+                    </div>
+                    <div style={{fontSize:9,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"} · {slot.players||0}/{slot.total||14}</div>
+                    {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
+                    {slot.status==="blocked"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(239,68,68,0.15)",color:"#ef4444",border:`1px solid rgba(239,68,68,0.35)`,display:"inline-block",marginTop:3}}>● BLOCKED</div>}
+                    {dur>1&&<div style={{position:"absolute",bottom:5,right:8,fontSize:9,color:C.muted}}>{slot.time}–{slot.endTime||"—"}</div>}
+                  </div>
+                ):isDragging?(
+                  isDragStart&&(
+                    <div style={{position:"absolute",top:4,left:4,right:4,height:`calc(${dragDur*ROW_HEIGHT}px - 8px)`,zIndex:3,borderRadius:8,background:"rgba(16,185,129,0.12)",border:`2px dashed rgba(16,185,129,0.5)`,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+                      <div style={{fontSize:11,fontWeight:800,color:C.green,textAlign:"center"}}>
+                        + {times[Math.min(dragStart.timeIdx,dragEnd?.timeIdx??dragStart.timeIdx)]} – {times[Math.max(dragStart.timeIdx,dragEnd?.timeIdx??dragStart.timeIdx)+1]||"00:00"}<br/>
+                        <span style={{fontSize:9,color:C.sub}}>สนาม {fi+1}</span>
+                      </div>
+                    </div>
+                  )
+                ):(
+                  <div style={{height:"100%",borderRadius:8,border:`1px dashed rgba(255,255,255,0.07)`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"crosshair",minHeight:60}}
+                    onMouseEnter={e=>{if(!dragStart){e.currentTarget.style.background="rgba(16,185,129,0.04)";e.currentTarget.style.borderColor="rgba(16,185,129,0.25)";}}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";}}>
+                    <span style={{fontSize:11,color:C.muted,fontWeight:700,pointerEvents:"none"}}>+ ว่าง</span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -661,20 +713,28 @@ const MOCK_PLAYERS = [
 ];
 
 const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
-  const [mode,setMode]=useState("create"); // create | manage | block
+  const [mode,setMode]=useState("create");
   const [type,setType]=useState("platform");
   const [name,setName]=useState("");
   const [time,setTime]=useState(selected?.time||"18:00");
-  const [endTime,setEndTime]=useState("20:00");
-  const [price,setPrice]=useState("1500");
-  const [matchType,setMatchType]=useState("7v7");
+  const [endTime,setEndTime]=useState(selected?.endTime||"20:00");
+  const [price,setPrice]=useState("150");
+  const [matchType,setMatchType]=useState("7v7_2t");
   const [playerName,setPlayerName]=useState("");
   const [addedPlayers,setAddedPlayers]=useState([]);
   const [blockReason,setBlockReason]=useState("");
-  const [blockType,setBlockType]=useState("slot"); // slot | day
+  const [blockType,setBlockType]=useState("slot");
   const [loading,setLoading]=useState(false);
-  const [done,setDone]=useState(null); // null | "success" | "error"
+  const [done,setDone]=useState(null);
   const [confirm,setConfirm]=useState(false);
+
+  useEffect(()=>{
+    if(!selected) return;
+    if(selected.time) setTime(selected.time);
+    if(selected.endTime) setEndTime(selected.endTime);
+    if(selected.slot) setMode("manage");
+    else setMode("create");
+  },[selected]);
 
   const inp={width:"100%",background:"#091510",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,color:C.text,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:12};
   const filtered=playerName.trim().length>0?MOCK_PLAYERS.filter(p=>p.name.includes(playerName.trim())):[];
@@ -693,7 +753,7 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
       const fieldNum = parseInt(String(selected?.field||"1").replace(/[^0-9]/g,""))||1;
       const roomName = type==="platform"
         ? `MATCH #SQ-${slotDate.replace(/-/g,"")}-F${fieldNum}`
-        : (name?.trim()||"Offline Booking");
+        : (name||"");
       const {error} = await supabase.from("slots").insert({
         venue_id: venueId,
         date: slotDate,
@@ -865,15 +925,9 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
             ))}
           </div>
           {type==="offline"&&(
-            <>
-              <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:10,lineHeight:1.6}}>
-                ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
-              </div>
-              <div style={{marginBottom:10}}>
-                <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ชื่อห้อง / ผู้จอง</div>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="เช่น คุณบอย เหมาสนาม, ทีมออฟฟิศ" style={{...inp,marginBottom:0}}/>
-              </div>
-            </>
+            <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:14,lineHeight:1.6}}>
+              ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
+            </div>
           )}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <div>
@@ -1378,6 +1432,7 @@ export default function SquadPartner() {
       const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
       if(data)setSlots(data.map(s=>({
         id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
+        endTime:s.end_time?.slice(0,5)||null,
         field:s.field_number||1,
         name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
         players:0,total:s.max_players||14,
@@ -1495,6 +1550,7 @@ export default function SquadPartner() {
   const {data}=await supabase.from("slots").select("*").eq("venue_id",venue.id).gte("date",today).order("date").order("start_time");
   if(data)setSlots(data.map(s=>({
     id:s.id,date:s.date,time:s.start_time?.slice(0,5)||"—",
+    endTime:s.end_time?.slice(0,5)||null,
     field:s.field_number||1,
     name:s.notes||(s.match_id?`MATCH #SQ-${s.match_id}`:""),
     players:0,total:s.max_players||14,
