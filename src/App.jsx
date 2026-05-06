@@ -636,12 +636,14 @@ const SHOP_ITEMS=[
 const BookingConfirmTab = ({venueId}) => {
   const [bookings,setBookings] = useState([]);
   const [loading,setLoading] = useState(true);
+  const [selected,setSelected] = useState([]);
+  const [filterDate,setFilterDate] = useState("all");
 
   const fetchBookings = async() => {
     setLoading(true);
     const {data} = await supabase
       .from("bookings")
-      .select("*, players(display_name,position,playstyle), slots(start_time,end_time,match_type)")
+      .select("*, players(display_name,position,playstyle), slots(start_time,end_time,match_type,price_per_player)")
       .eq("venue_id", venueId)
       .order("created_at",{ascending:false});
     if(data) setBookings(data);
@@ -650,71 +652,169 @@ const BookingConfirmTab = ({venueId}) => {
 
   useEffect(()=>{ if(venueId) fetchBookings(); },[venueId]);
 
-  const confirm = async(id) => {
-    await supabase.from("bookings").update({
-      status:"confirmed",
-      confirmed_at: new Date().toISOString(),
-      confirmed_by: "partner"
-    }).eq("id",id);
+  const bulkAction = async(status) => {
+    await Promise.all(selected.map(id=>
+      supabase.from("bookings").update({
+        status,
+        confirmed_at: new Date().toISOString(),
+        confirmed_by:"partner"
+      }).eq("id",id)
+    ));
+    setSelected([]);
     fetchBookings();
   };
 
-  const reject = async(id) => {
-    await supabase.from("bookings").update({status:"rejected"}).eq("id",id);
-    fetchBookings();
+  const toggleSelect = (id) =>
+    setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+
+  const selectDay = (dateStr) => {
+    const ids = bookings
+      .filter(b=>b.created_at?.slice(0,10)===dateStr && b.status==="pending")
+      .map(b=>b.id);
+    const allSelected = ids.every(id=>selected.includes(id));
+    setSelected(prev=>allSelected?prev.filter(x=>!ids.includes(x)):[...new Set([...prev,...ids])]);
   };
+
+  // Group by date
+  const grouped = bookings.reduce((acc,b)=>{
+    const d = b.created_at?.slice(0,10)||"unknown";
+    if(!acc[d]) acc[d]=[];
+    acc[d].push(b);
+    return acc;
+  },{});
+
+  const dates = Object.keys(grouped).sort((a,b)=>a>b?1:-1);
+
+  const formatDateTH = (str) => {
+    const d = new Date(str);
+    const months=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    const today = new Date().toISOString().slice(0,10);
+    const tomorrow = new Date(Date.now()+86400000).toISOString().slice(0,10);
+    const prefix = str===today?"วันนี้":str===tomorrow?"พรุ่งนี้":"";
+    return `${prefix}${prefix?" — ":""}${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()+543}`;
+  };
+
+  const filteredDates = filterDate==="all" ? dates : dates.filter(d=>d===filterDate);
 
   if(loading) return <div style={{padding:24,color:C.sub,fontSize:13}}>กำลังโหลด...</div>;
 
   return(
     <div style={{maxWidth:600}}>
-      <div style={{fontSize:11,fontWeight:800,letterSpacing:2,color:C.green,textTransform:"uppercase",marginBottom:16}}>การจองทั้งหมด</div>
-      {bookings.length===0?(
-        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:32,textAlign:"center"}}>
-          <div style={{fontSize:32,marginBottom:8}}>📋</div>
-          <div style={{fontSize:13,color:C.sub}}>ยังไม่มีการจอง</div>
-        </div>
-      ):(
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {bookings.map(b=>{
-            const isPending = b.status==="pending";
-            const isConfirmed = b.status==="confirmed";
-            return(
-              <div key={b.id} style={{background:C.bg2,border:`1px solid ${isPending?"rgba(251,191,36,0.3)":isConfirmed?"rgba(16,185,129,0.25)":C.border}`,borderRadius:14,padding:16}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                  <div>
-                    <div style={{fontSize:14,fontWeight:800,color:C.text}}>{b.players?.display_name||"—"}</div>
-                    <div style={{fontSize:10,color:C.sub,marginTop:2}}>
-                      {b.players?.position} · {b.players?.playstyle} · {b.slots?.start_time?.slice(0,5)}–{b.slots?.end_time?.slice(0,5)}
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize:9,fontWeight:800,padding:"3px 9px",borderRadius:99,
-                    background:isPending?"rgba(251,191,36,0.1)":isConfirmed?"rgba(16,185,129,0.1)":"rgba(239,68,68,0.1)",
-                    color:isPending?"#fbbf24":isConfirmed?C.green:"#ef4444",
-                    border:`1px solid ${isPending?"rgba(251,191,36,0.3)":isConfirmed?"rgba(16,185,129,0.25)":"rgba(239,68,68,0.25)"}`,
-                  }}>
-                    {isPending?"⏳ รอยืนยัน":isConfirmed?"✓ Confirmed":"✗ Rejected"}
-                  </div>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontSize:20,fontWeight:900,color:C.green}}>฿{b.amount}</div>
-                  {isPending&&(
-                    <div style={{display:"flex",gap:8}}>
-                      <button onClick={()=>reject(b.id)} style={{padding:"7px 16px",borderRadius:8,fontSize:12,fontWeight:800,border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.08)",color:"#ef4444",cursor:"pointer"}}>
-                        ปฏิเสธ
-                      </button>
-                      <button onClick={()=>confirm(b.id)} style={{padding:"7px 16px",borderRadius:8,fontSize:12,fontWeight:800,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,cursor:"pointer"}}>
-                        ✓ ยืนยัน
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      <div style={{fontSize:11,fontWeight:800,letterSpacing:2,color:C.green,textTransform:"uppercase",marginBottom:12}}>การจองทั้งหมด</div>
+
+      {/* Filter bar */}
+      <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:10,paddingBottom:2}}>
+        {["all",...dates].map(d=>(
+          <button key={d} onClick={()=>setFilterDate(d)}
+            style={{padding:"5px 12px",borderRadius:7,fontSize:10,fontWeight:800,whiteSpace:"nowrap",cursor:"pointer",
+              border:`1px solid ${filterDate===d?"rgba(16,185,129,0.35)":"rgba(16,185,129,0.14)"}`,
+              background:filterDate===d?"rgba(16,185,129,0.1)":"transparent",
+              color:filterDate===d?C.green:C.sub}}>
+            {d==="all"?"ทั้งหมด":formatDateTH(d).replace(/ — .*/,"")||d}
+          </button>
+        ))}
+      </div>
+
+      {/* Bulk action bar */}
+      {selected.length>0&&(
+        <div style={{marginBottom:10,padding:"8px 12px",background:"rgba(16,185,129,0.07)",border:`1px solid rgba(16,185,129,0.22)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:15,height:15,borderRadius:3,background:C.green,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="9" height="7" viewBox="0 0 9 7"><polyline points="1,3.5 3.5,6 8,1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>
+            </div>
+            <span style={{fontSize:11,fontWeight:800,color:C.green}}>เลือกแล้ว {selected.length} รายการ</span>
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>bulkAction("rejected")}
+              style={{padding:"5px 12px",borderRadius:7,fontSize:11,fontWeight:800,cursor:"pointer",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#ef4444"}}>
+              ปฏิเสธ
+            </button>
+            <button onClick={()=>bulkAction("confirmed")}
+              style={{padding:"5px 12px",borderRadius:7,fontSize:11,fontWeight:800,cursor:"pointer",background:"rgba(16,185,129,0.1)",border:`1px solid rgba(16,185,129,0.3)`,color:C.green}}>
+              ✓ ยืนยัน {selected.length} รายการ
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Groups */}
+      {filteredDates.length===0?(
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:32,textAlign:"center"}}>
+          <div style={{fontSize:28,marginBottom:8}}>📋</div>
+          <div style={{fontSize:13,color:C.sub}}>ยังไม่มีการจอง</div>
+        </div>
+      ):filteredDates.map(dateStr=>{
+        const items = grouped[dateStr]||[];
+        const pendingCount = items.filter(b=>b.status==="pending").length;
+        return(
+          <div key={dateStr}>
+            {/* Date header */}
+            <div style={{padding:"10px 0 6px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:2,height:13,background:pendingCount>0?C.green:C.sub,borderRadius:2}}/>
+                <span style={{fontSize:11,fontWeight:900,color:C.text}}>{formatDateTH(dateStr)}</span>
+                {pendingCount>0&&(
+                  <span style={{fontSize:8,fontWeight:800,padding:"2px 7px",borderRadius:99,background:"rgba(251,191,36,0.1)",color:"#fbbf24",border:"1px solid rgba(251,191,36,0.2)"}}>
+                    {pendingCount} รอยืนยัน
+                  </span>
+                )}
+              </div>
+              {pendingCount>0&&(
+                <button onClick={()=>selectDay(dateStr)}
+                  style={{fontSize:9,fontWeight:800,color:C.green,background:"none",border:"none",cursor:"pointer"}}>
+                  เลือกทั้งวัน
+                </button>
+              )}
+            </div>
+
+            {/* Cards */}
+            {items.map(b=>{
+              const isPending = b.status==="pending";
+              const isConfirmed = b.status==="confirmed";
+              const isSel = selected.includes(b.id);
+              return(
+                <div key={b.id} onClick={()=>isPending&&toggleSelect(b.id)}
+                  style={{marginBottom:6,padding:"10px 12px",background:C.bg2,
+                    border:`1px solid ${isSel?"rgba(16,185,129,0.4)":isPending?"rgba(251,191,36,0.2)":isConfirmed?"rgba(16,185,129,0.12)":C.border}`,
+                    borderRadius:11,display:"flex",gap:10,alignItems:"center",
+                    cursor:isPending?"pointer":"default",opacity:isConfirmed?0.55:1,
+                    transition:"border .15s"}}>
+                  {/* Checkbox */}
+                  {isPending?(
+                    <div style={{width:15,height:15,borderRadius:3,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                      border:`1.5px solid ${isSel?"transparent":"rgba(16,185,129,0.4)"}`,
+                      background:isSel?C.green:"transparent"}}>
+                      {isSel&&<svg width="9" height="7" viewBox="0 0 9 7"><polyline points="1,3.5 3.5,6 8,1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}
+                    </div>
+                  ):<div style={{width:15,flexShrink:0}}/>}
+
+                  {/* Info */}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                      <span style={{fontSize:13,fontWeight:800,color:C.text}}>{b.players?.display_name||"—"}</span>
+                      <span style={{fontSize:9,color:C.sub}}>{b.players?.position} · {b.players?.playstyle}</span>
+                    </div>
+                    <div style={{fontSize:10,color:C.sub}}>
+                      {b.slots?.start_time?.slice(0,5)||"—"}–{b.slots?.end_time?.slice(0,5)||"—"} · {formatMatchType(b.slots?.match_type||"")}
+                    </div>
+                  </div>
+
+                  {/* Right */}
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:13,fontWeight:900,color:C.green,marginBottom:3}}>฿{b.amount}</div>
+                    <span style={{fontSize:8,fontWeight:800,padding:"2px 7px",borderRadius:99,
+                      background:isPending?"rgba(251,191,36,0.1)":isConfirmed?"rgba(16,185,129,0.08)":"rgba(239,68,68,0.08)",
+                      color:isPending?"#fbbf24":isConfirmed?C.green:"#ef4444",
+                      border:`1px solid ${isPending?"rgba(251,191,36,0.25)":isConfirmed?"rgba(16,185,129,0.2)":"rgba(239,68,68,0.2)"}`}}>
+                      {isPending?"⏳ รอยืนยัน":isConfirmed?"✓ Confirmed":"✗ Rejected"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 };
