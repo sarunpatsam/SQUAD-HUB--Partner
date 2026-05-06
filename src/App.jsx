@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 
 /* ═══ TOKENS ═══ */
+const formatMatchType = (t="") => {
+  const m = t.match(/^(\d+v\d+)_(\d+)t$/);
+  if(!m) return t;
+  return `${m[1]} · ${m[2]} teams`;
+};
 const C = {
   bg:"#050f0a", bg2:"#091510", bg3:"#0d1a12",
   surface:"rgba(16,185,129,0.04)", surface2:"rgba(255,255,255,0.05)",
