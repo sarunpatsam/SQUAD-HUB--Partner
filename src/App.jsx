@@ -644,13 +644,15 @@ const BookingConfirmTab = ({venueId}) => {
   const [selected,setSelected] = useState([]);
   const [activeTab,setActiveTab] = useState("pending");
   const [filterDate,setFilterDate] = useState(new Date().toISOString().slice(0,10));
+  const [showCal,setShowCal] = useState(false);
+  const [calView,setCalView] = useState(new Date());
 
   const fetchBookings = async() => {
     setLoading(true);
     const {data} = await supabase
       .from("bookings")
       .select("*, players(display_name,position,playstyle), slots(start_time,end_time,match_type,price_per_player)")
-      .eq("venue_id", venueId)
+      .eq("venue_id",venueId)
       .order("created_at",{ascending:false});
     if(data) setBookings(data);
     setLoading(false);
@@ -673,50 +675,53 @@ const BookingConfirmTab = ({venueId}) => {
   const toggleSelect = (id) =>
     setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
 
-  const toggleAll = () => {
-    const pendingIds = filtered.filter(b=>b.status==="pending").map(b=>b.id);
-    const allOn = pendingIds.every(id=>selected.includes(id));
-    setSelected(allOn?[]:pendingIds);
-  };
+  const pendingAll = bookings.filter(b=>b.status==="pending");
+  const allSelected = pendingAll.length>0 && pendingAll.every(b=>selected.includes(b.id));
 
-  const fmtDate = (str) => {
-    const d = new Date(str);
-    const months=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()+543}`;
-  };
+  const toggleAll = () =>
+    setSelected(allSelected?[]:pendingAll.map(b=>b.id));
 
-  const daysTH = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+  const pendingDates = new Set(pendingAll.map(b=>b.created_at?.slice(0,10)));
 
-  // Generate 14 days from today
-  const days = Array.from({length:14},(_,i)=>{
-    const d = new Date(); d.setDate(d.getDate()+i);
-    return d.toISOString().slice(0,10);
-  });
+  const filtered = activeTab==="pending"
+    ? pendingAll
+    : bookings.filter(b=>b.created_at?.slice(0,10)===filterDate);
 
-  // Dates that have pending bookings
-  const pendingDates = new Set(
-    bookings.filter(b=>b.status==="pending").map(b=>b.created_at?.slice(0,10))
-  );
-
-  const filtered = bookings.filter(b=>{
-    const matchDate = b.created_at?.slice(0,10)===filterDate;
-    if(activeTab==="pending") return matchDate && b.status==="pending";
-    return matchDate;
-  });
-
-  const pendingCount = bookings.filter(b=>b.status==="pending").length;
+  const pendingCount = pendingAll.length;
   const confirmedCount = bookings.filter(b=>b.status==="confirmed").length;
+  const todayStr = new Date().toISOString().slice(0,10);
   const todayTotal = bookings
-    .filter(b=>b.status==="confirmed" && b.created_at?.slice(0,10)===new Date().toISOString().slice(0,10))
+    .filter(b=>b.status==="confirmed"&&b.created_at?.slice(0,10)===todayStr)
     .reduce((s,b)=>s+b.amount,0);
 
-  const pendingIds = filtered.filter(b=>b.status==="pending").map(b=>b.id);
-  const allSelected = pendingIds.length>0 && pendingIds.every(id=>selected.includes(id));
+  const monthsTH=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const daysTH=["อา","จ","อ","พ","พฤ","ศ","ส"];
+
+  const fmtDateTH = (str) => {
+    const d=new Date(str);
+    return `${d.getDate()} ${monthsTH[d.getMonth()]}`;
+  };
+
+  // Calendar days
+  const calDays = () => {
+    const y=calView.getFullYear(), m=calView.getMonth();
+    const first=new Date(y,m,1).getDay();
+    const total=new Date(y,m+1,0).getDate();
+    return {first,total,y,m};
+  };
+
+  const GS = {
+    card:{padding:"12px 14px",borderRadius:12,display:"flex",gap:12,alignItems:"center"},
+    cb:(on)=>({width:17,height:17,borderRadius:4,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+      border:`1.5px solid ${on?"transparent":"rgba(16,185,129,0.4)"}`,background:on?"#10b981":"transparent"}),
+  };
 
   if(loading) return <div style={{padding:24,color:C.sub,fontSize:13}}>กำลังโหลด...</div>;
 
+  const {first,total,y,m} = calDays();
+
   return(
-    <div style={{maxWidth:640}}>
+    <div style={{maxWidth:640,position:"relative"}}>
 
       {/* Summary */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
@@ -732,108 +737,88 @@ const BookingConfirmTab = ({venueId}) => {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        <button onClick={()=>setActiveTab("pending")}
-          style={{padding:"7px 18px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:6,
-            border:`1px solid ${activeTab==="pending"?"rgba(251,191,36,0.35)":"rgba(16,185,129,0.14)"}`,
-            background:activeTab==="pending"?"rgba(251,191,36,0.1)":"transparent",
-            color:activeTab==="pending"?"#fbbf24":C.sub}}>
-          ⏳ รอยืนยัน
-          {pendingCount>0&&<span style={{background:"#fbbf24",color:"#070e0b",fontSize:9,fontWeight:900,padding:"1px 6px",borderRadius:99}}>{pendingCount}</span>}
-        </button>
-        <button onClick={()=>setActiveTab("all")}
-          style={{padding:"7px 18px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",
-            border:`1px solid ${activeTab==="all"?"rgba(16,185,129,0.35)":"rgba(16,185,129,0.14)"}`,
-            background:activeTab==="all"?"rgba(16,185,129,0.08)":"transparent",
-            color:activeTab==="all"?C.green:C.sub}}>
-          📋 ทั้งหมด
-        </button>
-      </div>
-
-      {/* Calendar scroll */}
-      <div style={{marginBottom:14}}>
-        <div style={{fontSize:9,fontWeight:800,color:C.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>เลือกวันที่</div>
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
-          {days.map(d=>{
-            const dt = new Date(d);
-            const months=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
-            const isActive = filterDate===d;
-            const hasPending = pendingDates.has(d);
-            return(
-              <div key={d} onClick={()=>setFilterDate(d)}
-                style={{flexShrink:0,width:54,padding:"8px 4px",borderRadius:10,textAlign:"center",cursor:"pointer",
-                  background:isActive?"rgba(16,185,129,0.1)":"transparent",
-                  border:`${isActive?"1.5px":"1px"} solid ${isActive?"rgba(16,185,129,0.4)":"rgba(16,185,129,0.12)"}`}}>
-                <div style={{fontSize:9,fontWeight:700,color:isActive?C.green:C.sub,marginBottom:2}}>{daysTH[dt.getDay()]}</div>
-                <div style={{fontSize:18,fontWeight:900,color:isActive?C.green:C.text,lineHeight:1}}>{dt.getDate()}</div>
-                <div style={{fontSize:8,color:isActive?C.green:C.sub,marginTop:1}}>{months[dt.getMonth()]}</div>
-                <div style={{width:5,height:5,borderRadius:"50%",margin:"4px auto 0",
-                  background:hasPending?"#fbbf24":"transparent"}}/>
-              </div>
-            );
-          })}
+      {/* Tabs + Cal button */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{display:"flex",gap:6}}>
+          {[
+            {id:"pending",label:"⏳ รอยืนยัน",count:pendingCount,activeColor:"#fbbf24",activeBorder:"rgba(251,191,36,0.35)",activeBg:"rgba(251,191,36,0.1)"},
+            {id:"all",label:"📋 ทั้งหมด",count:null,activeColor:C.green,activeBorder:"rgba(16,185,129,0.35)",activeBg:"rgba(16,185,129,0.08)"},
+          ].map(t=>(
+            <button key={t.id} onClick={()=>setActiveTab(t.id)}
+              style={{padding:"7px 18px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:6,
+                border:`1px solid ${activeTab===t.id?t.activeBorder:"rgba(16,185,129,0.14)"}`,
+                background:activeTab===t.id?t.activeBg:"transparent",
+                color:activeTab===t.id?t.activeColor:C.sub}}>
+              {t.label}
+              {t.count>0&&activeTab===t.id&&(
+                <span style={{background:t.activeColor,color:"#070e0b",fontSize:9,fontWeight:900,padding:"1px 6px",borderRadius:99}}>{t.count}</span>
+              )}
+            </button>
+          ))}
         </div>
+        {activeTab==="all"&&(
+          <button onClick={()=>setShowCal(true)}
+            style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:800,display:"flex",alignItems:"center",gap:6,
+              border:`1px solid rgba(16,185,129,0.25)`,background:"rgba(16,185,129,0.06)",color:C.green,cursor:"pointer"}}>
+            📅 {fmtDateTH(filterDate)}
+          </button>
+        )}
       </div>
 
       {/* Bulk bar */}
-      <div style={{marginBottom:10,padding:"9px 14px",background:"rgba(16,185,129,0.07)",border:`1px solid rgba(16,185,129,0.22)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={toggleAll}>
-          <div style={{width:17,height:17,borderRadius:4,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
-            border:`1.5px solid ${allSelected?"transparent":"rgba(16,185,129,0.4)"}`,
-            background:allSelected?C.green:"transparent"}}>
-            {allSelected&&<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}
+      {activeTab==="pending"&&(
+        <div style={{marginBottom:10,padding:"9px 14px",background:"rgba(16,185,129,0.07)",border:`1px solid rgba(16,185,129,0.22)`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onClick={toggleAll}>
+            <div style={GS.cb(allSelected)}>
+              {allSelected&&<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}
+            </div>
+            <span style={{fontSize:12,fontWeight:800,color:C.green}}>
+              {selected.length>0?`เลือกแล้ว ${selected.length} รายการ`:"เลือกทั้งหมด"}
+            </span>
           </div>
-          <span style={{fontSize:12,fontWeight:800,color:C.green}}>
-            {selected.length>0?`เลือกแล้ว ${selected.length} รายการ`:"เลือกทั้งหมด"}
-          </span>
+          {selected.length>0&&(
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>bulkAction("rejected")}
+                style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#ef4444"}}>
+                ปฏิเสธ
+              </button>
+              <button onClick={()=>bulkAction("confirmed")}
+                style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",background:"rgba(16,185,129,0.1)",border:`1px solid rgba(16,185,129,0.3)`,color:C.green}}>
+                ✓ ยืนยัน {selected.length} รายการ
+              </button>
+            </div>
+          )}
         </div>
-        {selected.length>0&&(
-          <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>bulkAction("rejected")}
-              style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#ef4444"}}>
-              ปฏิเสธ
-            </button>
-            <button onClick={()=>bulkAction("confirmed")}
-              style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",background:"rgba(16,185,129,0.1)",border:`1px solid rgba(16,185,129,0.3)`,color:C.green}}>
-              ✓ ยืนยัน {selected.length} รายการ
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Cards */}
       {filtered.length===0?(
         <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:32,textAlign:"center"}}>
           <div style={{fontSize:28,marginBottom:8}}>📋</div>
-          <div style={{fontSize:13,color:C.sub}}>{activeTab==="pending"?"ไม่มีรายการรอยืนยัน":"ไม่มีการจองในวันนี้"}</div>
+          <div style={{fontSize:13,color:C.sub}}>{activeTab==="pending"?"ไม่มีรายการรอยืนยัน":"ไม่มีการจองในวันที่เลือก"}</div>
         </div>
       ):(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {filtered.map(b=>{
-            const isPending = b.status==="pending";
-            const isConfirmed = b.status==="confirmed";
-            const isSel = selected.includes(b.id);
+            const isPending=b.status==="pending";
+            const isConfirmed=b.status==="confirmed";
+            const isSel=selected.includes(b.id);
             return(
               <div key={b.id} onClick={()=>isPending&&toggleSelect(b.id)}
-                style={{padding:"12px 14px",background:C.bg2,
+                style={{...GS.card,background:C.bg2,
                   border:`${isSel?"1.5px":"1px"} solid ${isSel?"rgba(16,185,129,0.4)":isPending?"rgba(251,191,36,0.2)":isConfirmed?"rgba(16,185,129,0.12)":C.border}`,
-                  borderRadius:12,display:"flex",gap:12,alignItems:"center",
-                  cursor:isPending?"pointer":"default",opacity:isConfirmed?0.6:1,transition:"border .15s"}}>
-                {isPending?(
-                  <div style={{width:17,height:17,borderRadius:4,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
-                    border:`1.5px solid ${isSel?"transparent":"rgba(16,185,129,0.4)"}`,
-                    background:isSel?C.green:"transparent"}}>
-                    {isSel&&<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}
-                  </div>
-                ):<div style={{width:17,flexShrink:0}}/>}
+                  cursor:isPending?"pointer":"default",opacity:isConfirmed?0.6:1}}>
+                {isPending
+                  ?<div style={GS.cb(isSel)}>{isSel&&<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}</div>
+                  :<div style={{width:17,flexShrink:0}}/>
+                }
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
                     <span style={{fontSize:14,fontWeight:800,color:C.text}}>{b.players?.display_name||"—"}</span>
                     <span style={{fontSize:10,color:C.sub}}>{b.players?.position} · {b.players?.playstyle}</span>
                   </div>
                   <div style={{fontSize:11,color:C.sub}}>
-                    {b.slots?.start_time?.slice(0,5)||"—"}–{b.slots?.end_time?.slice(0,5)||"—"} · {formatMatchType(b.slots?.match_type||"")}
+                    {fmtDateTH(b.created_at?.slice(0,10))} · {b.slots?.start_time?.slice(0,5)||"—"}–{b.slots?.end_time?.slice(0,5)||"—"} · {formatMatchType(b.slots?.match_type||"")}
                   </div>
                 </div>
                 <div style={{textAlign:"right",flexShrink:0}}>
@@ -848,6 +833,59 @@ const BookingConfirmTab = ({venueId}) => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Calendar popup */}
+      {showCal&&(
+        <div onClick={()=>setShowCal(false)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:"#091510",border:`1px solid rgba(16,185,129,0.2)`,borderRadius:16,padding:20,width:300}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+              <button onClick={()=>setCalView(new Date(y,m-1,1))}
+                style={{width:32,height:32,borderRadius:7,background:"rgba(16,185,129,0.06)",border:`1px solid rgba(16,185,129,0.15)`,color:C.green,fontSize:16,cursor:"pointer"}}>‹</button>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:16,fontWeight:900,color:C.text}}>{monthsTH[m]}</div>
+                <div style={{fontSize:12,color:C.sub}}>{y+543}</div>
+              </div>
+              <button onClick={()=>setCalView(new Date(y,m+1,1))}
+                style={{width:32,height:32,borderRadius:7,background:"rgba(16,185,129,0.06)",border:`1px solid rgba(16,185,129,0.15)`,color:C.green,fontSize:16,cursor:"pointer"}}>›</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:6}}>
+              {daysTH.map(d=><div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:C.sub,padding:"4px 0"}}>{d}</div>)}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+              {Array(first).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+              {Array(total).fill(null).map((_,i)=>{
+                const dayNum=i+1;
+                const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+                const isToday=dateStr===todayStr;
+                const isSel=dateStr===filterDate;
+                const hasPending=pendingDates.has(dateStr);
+                return(
+                  <div key={dayNum} onClick={()=>{setFilterDate(dateStr);setShowCal(false);}}
+                    style={{height:38,borderRadius:8,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,cursor:"pointer",
+                      background:isSel?C.green:isToday?"rgba(16,185,129,0.15)":"transparent",
+                      color:isSel?"#070e0b":isToday?C.green:C.text,
+                      border:isToday&&!isSel?`1px solid rgba(16,185,129,0.3)`:"1px solid transparent"}}>
+                    {dayNum}
+                    {hasPending&&<div style={{width:4,height:4,borderRadius:"50%",background:isSel?"#070e0b":"#fbbf24",marginTop:1}}/>}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",gap:12,marginTop:14,paddingTop:12,borderTop:`1px solid rgba(16,185,129,0.1)`}}>
+              {[{dot:"#fbbf24",label:"มี pending"},{box:C.green,label:"วันที่เลือก"},{boxBorder:true,label:"วันนี้"}].map((l,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:C.sub}}>
+                  {l.dot&&<div style={{width:6,height:6,borderRadius:"50%",background:l.dot}}/>}
+                  {l.box&&<div style={{width:14,height:14,borderRadius:4,background:l.box}}/>}
+                  {l.boxBorder&&<div style={{width:14,height:14,borderRadius:4,border:`1px solid rgba(16,185,129,0.3)`}}/>}
+                  {l.label}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
