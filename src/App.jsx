@@ -633,6 +633,91 @@ const SHOP_ITEMS=[
   {id:8,name:"ผ้าเช็ดตัว",price:150,icon:"🏊",cat:"gear"},
   {id:9,name:"เสื้อ SQUAD HUB",price:490,icon:"👕",cat:"merch"},
 ];
+const BookingConfirmTab = ({venueId}) => {
+  const [bookings,setBookings] = useState([]);
+  const [loading,setLoading] = useState(true);
+
+  const fetchBookings = async() => {
+    setLoading(true);
+    const {data} = await supabase
+      .from("bookings")
+      .select("*, players(display_name,position,playstyle), slots(start_time,end_time,match_type)")
+      .eq("venue_id", venueId)
+      .order("created_at",{ascending:false});
+    if(data) setBookings(data);
+    setLoading(false);
+  };
+
+  useEffect(()=>{ if(venueId) fetchBookings(); },[venueId]);
+
+  const confirm = async(id) => {
+    await supabase.from("bookings").update({
+      status:"confirmed",
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: "partner"
+    }).eq("id",id);
+    fetchBookings();
+  };
+
+  const reject = async(id) => {
+    await supabase.from("bookings").update({status:"rejected"}).eq("id",id);
+    fetchBookings();
+  };
+
+  if(loading) return <div style={{padding:24,color:C.sub,fontSize:13}}>กำลังโหลด...</div>;
+
+  return(
+    <div style={{maxWidth:600}}>
+      <div style={{fontSize:11,fontWeight:800,letterSpacing:2,color:C.green,textTransform:"uppercase",marginBottom:16}}>การจองทั้งหมด</div>
+      {bookings.length===0?(
+        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:32,textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:8}}>📋</div>
+          <div style={{fontSize:13,color:C.sub}}>ยังไม่มีการจอง</div>
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {bookings.map(b=>{
+            const isPending = b.status==="pending";
+            const isConfirmed = b.status==="confirmed";
+            return(
+              <div key={b.id} style={{background:C.bg2,border:`1px solid ${isPending?"rgba(251,191,36,0.3)":isConfirmed?"rgba(16,185,129,0.25)":C.border}`,borderRadius:14,padding:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:800,color:C.text}}>{b.players?.display_name||"—"}</div>
+                    <div style={{fontSize:10,color:C.sub,marginTop:2}}>
+                      {b.players?.position} · {b.players?.playstyle} · {b.slots?.start_time?.slice(0,5)}–{b.slots?.end_time?.slice(0,5)}
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize:9,fontWeight:800,padding:"3px 9px",borderRadius:99,
+                    background:isPending?"rgba(251,191,36,0.1)":isConfirmed?"rgba(16,185,129,0.1)":"rgba(239,68,68,0.1)",
+                    color:isPending?"#fbbf24":isConfirmed?C.green:"#ef4444",
+                    border:`1px solid ${isPending?"rgba(251,191,36,0.3)":isConfirmed?"rgba(16,185,129,0.25)":"rgba(239,68,68,0.25)"}`,
+                  }}>
+                    {isPending?"⏳ รอยืนยัน":isConfirmed?"✓ Confirmed":"✗ Rejected"}
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:20,fontWeight:900,color:C.green}}>฿{b.amount}</div>
+                  {isPending&&(
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>reject(b.id)} style={{padding:"7px 16px",borderRadius:8,fontSize:12,fontWeight:800,border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.08)",color:"#ef4444",cursor:"pointer"}}>
+                        ปฏิเสธ
+                      </button>
+                      <button onClick={()=>confirm(b.id)} style={{padding:"7px 16px",borderRadius:8,fontSize:12,fontWeight:800,border:`1px solid ${C.borderHi}`,background:C.greenDim,color:C.green,cursor:"pointer"}}>
+                        ✓ ยืนยัน
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 const ShopTab = ({venueId,ownerUnlocked}) => {
   const [items,setItems]=useState([]);
   const [cart,setCart]=useState({});
@@ -1960,11 +2045,8 @@ export default function SquadPartner() {
           {tab==="shop"&&<ShopTab venueId={venue?.id} ownerUnlocked={ownerUnlocked}/>}
           {tab==="finance"&&<FinanceTab venue={venue} todaySlots={todaySlots}/>}
           {tab==="booking"&&(
-            <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24,maxWidth:600}}>
-              <div style={{fontSize:11,fontWeight:800,letterSpacing:2,color:C.green,textTransform:"uppercase",marginBottom:6}}>การจองทั้งหมด</div>
-              <div style={{fontSize:13,color:C.sub,textAlign:"center",padding:"24px 0"}}>รายการจองทั้งหมดจะแสดงเมื่อเชื่อมกับ Supabase</div>
-            </div>
-          )}
+  <BookingConfirmTab venueId={venue?.id}/>
+)}
         </main>
       </div>
 
