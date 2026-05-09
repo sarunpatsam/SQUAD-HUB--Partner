@@ -658,7 +658,12 @@ const BookingConfirmTab = ({venueId}) => {
     setLoading(false);
   };
 
-  useEffect(()=>{ if(venueId) fetchBookings(); },[venueId]);
+  useEffect(()=>{
+  if(!venueId) return;
+  fetchBookings();
+  const interval = setInterval(fetchBookings, 10000);
+  return ()=> clearInterval(interval);
+},[venueId]);
 
   const bulkAction = async(status) => {
     await Promise.all(selected.map(id=>
