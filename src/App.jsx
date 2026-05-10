@@ -679,16 +679,27 @@ const BookingConfirmTab = ({venueId}) => {
 },[venueId]);
 
   const bulkAction = async(status) => {
-    await Promise.all(selected.map(id=>
-      supabase.from("bookings").update({
-        status,
-        confirmed_at:new Date().toISOString(),
-        confirmed_by:"partner"
-      }).eq("id",id)
+  await Promise.all(selected.map(id=>
+    supabase.from("bookings").update({
+      status,
+      confirmed_at: new Date().toISOString(),
+      confirmed_by: "partner"
+    }).eq("id", id)
+  ));
+
+  if(status === "confirmed") {
+    await Promise.all(selected.map(id =>
+      fetch("https://primary-production-e855.up.railway.app/webhook/booking-confirmed", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ booking_id: id })
+      })
     ));
-    setSelected([]);
-    fetchBookings();
-  };
+  }
+
+  setSelected([]);
+  fetchBookings();
+};
 
   const toggleSelect = (id) =>
     setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
