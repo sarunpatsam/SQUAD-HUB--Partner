@@ -1601,7 +1601,10 @@ const MatchEndTab = ({match,onDone,slots}) => {
     <button onClick={confirm} disabled={loading}
       style={{width:"100%",padding:"10px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",
         background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24"}}>
-      {loading?"กำลังส่ง...":"🧪 Force End Match (Test)"}
+      {loading?"กำลังส่ง...":"🧪 Force End Match (Dev)"}
+      {process.env.NODE_ENV === "development" && (!match?.id) && (
+  <div>...</div>
+)}
     </button>
   </div>
 )}
