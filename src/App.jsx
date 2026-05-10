@@ -1595,7 +1595,16 @@ const MatchEndTab = ({match,onDone,slots}) => {
         <Btn onClick={confirm} disabled={loading||!match} style={{width:"100%",padding:14,fontSize:15}}>
           {loading?"กำลังส่ง...":"⏱ ยืนยันแมตช์จบ →"}
         </Btn>
-        {!match&&<div style={{fontSize:12,color:C.muted,textAlign:"center",marginTop:10}}>กด slot LIVE ใน calendar เพื่อเลือก match</div>}
+        {!match&&(
+  <div style={{marginTop:12}}>
+    <div style={{fontSize:12,color:C.muted,textAlign:"center",marginBottom:10}}>หรือทดสอบโดยไม่มี live slot:</div>
+    <button onClick={confirm} disabled={loading}
+      style={{width:"100%",padding:"10px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",
+        background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24"}}>
+      {loading?"กำลังส่ง...":"🧪 Force End Match (Test)"}
+    </button>
+  </div>
+)}
       </div>
     </div>
   );
