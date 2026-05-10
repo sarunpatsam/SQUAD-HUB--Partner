@@ -1592,10 +1592,10 @@ const MatchEndTab = ({match,onDone,slots}) => {
         <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:22,fontSize:12,color:C.greenBr,lineHeight:1.9,fontWeight:700}}>
           หลังกดยืนยัน:<br/><span style={{color:C.sub,fontWeight:400}}>LINE Bot → แจ้งกัปตัน → กัปตันส่งสรุป → AI บันทึก Stats + XP</span>
         </div>
-        <Btn onClick={confirm} disabled={loading||!match} style={{width:"100%",padding:14,fontSize:15}}>
+        <Btn onClick={confirm} disabled={loading} style={{width:"100%",padding:14,fontSize:15}}>
           {loading?"กำลังส่ง...":"⏱ ยืนยันแมตช์จบ →"}
         </Btn>
-        {!match&&(
+        {(!match?.id)&&(
   <div style={{marginTop:12}}>
     <div style={{fontSize:12,color:C.muted,textAlign:"center",marginBottom:10}}>หรือทดสอบโดยไม่มี live slot:</div>
     <button onClick={confirm} disabled={loading}
