@@ -1602,7 +1602,7 @@ const MatchEndTab = ({match,onDone,slots}) => {
       style={{width:"100%",padding:"10px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",
         background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24"}}>
       {loading?"กำลังส่ง...":"🧪 Force End Match (Dev)"}
-      {process.env.NODE_ENV === "development" && (!match?.id) && (
+      {new URLSearchParams(window.location.search).get("dev") === "1" && (!match?.id) && (
   <div>...</div>
 )}
     </button>
