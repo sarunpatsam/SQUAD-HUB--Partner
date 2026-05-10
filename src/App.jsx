@@ -1525,7 +1525,7 @@ const MatchEndTab = ({match,onDone,slots}) => {
   const endedToday = slots?.filter(s=>s.status==="ended"||s.status==="offline")||[];
   const confirm = async () => {
     setLoading(true);
-    try { await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({match_id:match?.id||1,venue_id:match?.venue_id||1})}); }
+    try { await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({match_id:match?.id||1,venue_id:match?.venue_id||1,captain_line_ids:["Udb987d8a26b71d5bb63fc976b1f0179f"]})}); }
     catch(e){console.error(e);}
     setSent(true);setLoading(false);
   };
