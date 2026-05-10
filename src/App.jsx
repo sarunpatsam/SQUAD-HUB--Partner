@@ -1608,12 +1608,17 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
   const [weeklyShop,setWeeklyShop]=useState([0,0,0,0,0,0,0]);
   const [monthlyShop,setMonthlyShop]=useState(Array(4).fill(0));
   const [activeTab,setActiveTab]=useState("overview");
-  const [chartRange,setChartRange]=useState("week"); // week | month
+  const [chartRange,setChartRange]=useState("week");
+  const [bookingRevToday,setBookingRevToday]=useState(0);
+  const [bookingRevWeek,setBookingRevWeek]=useState([0,0,0,0,0,0,0]);
+  const [bookingRevMonth,setBookingRevMonth]=useState(Array(4).fill(0));
+  const [bookingHistory,setBookingHistory]=useState([]);
 
   useEffect(()=>{
     if(!venue?.id)return;
     const today=new Date().toISOString().split("T")[0];
     const monthStart=today.slice(0,7)+"-01";
+
     supabase.from("shop_sales").select("*").eq("venue_id",venue.id)
       .gte("created_at",monthStart).order("created_at",{ascending:false})
       .then(({data})=>{
@@ -1621,7 +1626,6 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
         const todayData=data.filter(s=>s.created_at.startsWith(today));
         setShopSales(todayData.reduce((a,s)=>a+(s.total||0),0));
         setShopHistory(todayData);
-        // Weekly: last 7 days
         const w=Array(7).fill(0);
         data.forEach(s=>{
           const d=new Date(s.created_at);
@@ -1629,7 +1633,6 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
           if(diff<7)w[6-diff]=(w[6-diff]||0)+(s.total||0);
         });
         setWeeklyShop(w);
-        // Monthly: 4 weeks
         const m=Array(4).fill(0);
         data.forEach(s=>{
           const d=new Date(s.created_at);
@@ -1638,15 +1641,39 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
         });
         setMonthlyShop(m);
       });
+
+    supabase.from("bookings").select("*, players(display_name), slots(start_time,end_time,match_type)")
+      .eq("venue_id",venue.id).eq("status","confirmed")
+      .gte("created_at",monthStart).order("created_at",{ascending:false})
+      .then(({data})=>{
+        if(!data)return;
+        const todayData=data.filter(b=>b.created_at.startsWith(today));
+        setBookingRevToday(todayData.reduce((a,b)=>a+(b.amount||0),0));
+        setBookingHistory(todayData);
+        const w=Array(7).fill(0);
+        data.forEach(b=>{
+          const d=new Date(b.created_at);
+          const diff=Math.floor((new Date()-d)/86400000);
+          if(diff<7)w[6-diff]=(w[6-diff]||0)+(b.amount||0);
+        });
+        setBookingRevWeek(w);
+        const m=Array(4).fill(0);
+        data.forEach(b=>{
+          const d=new Date(b.created_at);
+          const week=Math.floor((new Date().getDate()-d.getDate())/7);
+          if(week>=0&&week<4)m[3-week]=(m[3-week]||0)+(b.amount||0);
+        });
+        setBookingRevMonth(m);
+      });
   },[venue]);
 
-  const slotRevenue=0; // รอ booking จริง Season 2
+  const slotRevenue=bookingRevToday;
   const totalToday=shopSales+slotRevenue;
-  const totalWeek=weeklyShop.reduce((a,b)=>a+b,0);
-  const totalMonth=monthlyShop.reduce((a,b)=>a+b,0);
+  const totalWeek=weeklyShop.reduce((a,b)=>a+b,0)+bookingRevWeek.reduce((a,b)=>a+b,0);
+  const totalMonth=monthlyShop.reduce((a,b)=>a+b,0)+bookingRevMonth.reduce((a,b)=>a+b,0);
   const commissionSaved=Math.round(totalMonth*0.05);
 
-  const chartData=chartRange==="week"?weeklyShop:monthlyShop;
+  const chartData=chartRange==="week"?(activeTab==="slot"?bookingRevWeek:weeklyShop):(activeTab==="slot"?bookingRevMonth:monthlyShop);
   const chartMax=Math.max(...chartData,1);
   const chartLabels=chartRange==="week"
     ?["จ","อ","พ","พฤ","ศ","ส","วันนี้"]
@@ -1682,7 +1709,7 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
         <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${todaySlots.filter(s=>s.status==="live").length} LIVE`}/>
-        <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="รวมทุก slot"/>
+        <MetricCard icon="👥" value={bookingHistory.length||todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จาก booking วันนี้"/>
       </div>
 
       {/* Tabs */}
@@ -1727,7 +1754,7 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
             {[
               {l:"Utilization",v:todaySlots.length>0?`${Math.round(todaySlots.filter(s=>s.status!=="available").length/todaySlots.length*100)}%`:"—",sub:`${venue?.field_count||3} สนาม`,pct:todaySlots.length>0?Math.round(todaySlots.filter(s=>s.status!=="available").length/todaySlots.length*100):0},
               {l:"Active Players",v:todaySlots.reduce((a,s)=>a+(s.players||0),0),sub:"วันนี้",pct:Math.min(todaySlots.reduce((a,s)=>a+(s.players||0),0)/100*100,100)},
-              {l:"Slot เดือนนี้",v:todaySlots.length,sub:"Platform + Offline",pct:50},
+              {l:"Booking เดือนนี้",v:bookingRevMonth.reduce((a,b)=>a+(b>0?1:0),0)||"—",sub:"Platform (Confirmed)",pct:50},
               {l:"Commission Saved",v:`฿${commissionSaved.toLocaleString()}`,sub:"S1 ประหยัดได้",pct:100},
             ].map((item,i)=>(
               <div key={i} style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px"}}>
@@ -1788,8 +1815,19 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
               </div>
             ))}
           </div>
-          <div style={{background:"rgba(16,185,129,0.04)",border:`1px solid rgba(16,185,129,0.1)`,borderRadius:12,padding:"12px 16px",fontSize:11,color:C.muted,lineHeight:1.7}}>
-            รายได้ slot จะแสดงเมื่อ booking ผ่าน platform จริง · Season 2
+          <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:18}}>
+            <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:14}}>Booking วันนี้ (Confirmed)</div>
+            {bookingHistory.length===0?(
+              <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"16px 0"}}>ยังไม่มี booking วันนี้</div>
+            ):bookingHistory.map((b,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<bookingHistory.length-1?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{b.players?.display_name||"—"}</div>
+                  <div style={{fontSize:10,color:C.sub,marginTop:2}}>{b.slots?.start_time?.slice(0,5)||"—"}–{b.slots?.end_time?.slice(0,5)||"—"} · {b.slots?.match_type||"—"}</div>
+                </div>
+                <div style={{fontSize:15,fontWeight:900,color:C.green}}>฿{(b.amount||0).toLocaleString()}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1798,7 +1836,7 @@ const FinanceTab = ({venue,todaySlots=[]}) => {
 };
 
 /* ═══ MOBILE ═══ */
-const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
+const MobileApp = ({venue,slots,ownerUnlocked,onLogout,todayRevenue=0}) => {
   const [mTab,setMTab]=useState("scan");
   const [showScanner,setShowScanner]=useState(false);
   const [scanId,setScanId]=useState(null);
@@ -1884,7 +1922,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
         <div style={{fontSize:9,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>รายได้วันนี้</div>
-        <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>฿{displaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}</div>
+        <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>฿{todayRevenue.toLocaleString()}</div>
         <div style={{fontSize:10,color:C.sub,marginTop:3,fontWeight:700}}>รวมทุกช่องทาง</div>
       </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px"}}>
@@ -1986,7 +2024,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout}) => {
               </div>
               <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 14px",marginBottom:12}}>
                 <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>รายได้วันนี้</div>
-                <div style={{fontSize:26,fontWeight:900,color:C.text,marginBottom:4}}>฿{displaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}</div>
+                <div style={{fontSize:26,fontWeight:900,color:C.text,marginBottom:4}}>฿{todayRevenue.toLocaleString()}</div>
                 <div style={{fontSize:11,color:C.sub}}>รวมทุกช่องทาง</div>
               </div>
               <Btn ghost onClick={handleLogout} style={{width:"100%",fontSize:13}}>↩ ออกจากระบบ</Btn>
@@ -2094,6 +2132,27 @@ export default function SquadPartner() {
   },[venue]);
 
   const handleLogout=async()=>{await supabase.auth.signOut();setUnlocked(false);setVenue(null);setSlots([]);setOwnerUnlocked(false);};
+
+  // Dashboard revenue from real bookings
+  const [dashboardRevenue,setDashboardRevenue]=useState(0);
+  const [dashboardPlayers,setDashboardPlayers]=useState(0);
+  const [mobileRevenue,setMobileRevenue]=useState(0);
+
+  useEffect(()=>{
+    if(!venue?.id)return;
+    const today=new Date().toISOString().split("T")[0];
+    supabase.from("bookings").select("amount,player_id")
+      .eq("venue_id",venue.id).eq("status","confirmed")
+      .gte("created_at",today).lt("created_at",today+"T23:59:59")
+      .then(({data})=>{
+        if(!data)return;
+        const rev=data.reduce((a,b)=>a+(b.amount||0),0);
+        setDashboardRevenue(rev);
+        setMobileRevenue(rev);
+        setDashboardPlayers(data.length);
+      });
+  },[venue]);
+
   const calDateStr=calDate.toISOString().split("T")[0];
   const todaySlots=slots.filter(s=>s.date===calDateStr);
   const todayStr=new Date().toISOString().split("T")[0];
@@ -2134,7 +2193,7 @@ export default function SquadPartner() {
     </div>
   );
   if(!unlocked)return<VenueLogin onSuccess={v=>{setVenue(v);setUnlocked(true);}}/>;
-  if(isMobile)return<MobileApp venue={venue} slots={todaySlots} ownerUnlocked={ownerUnlocked} onLogout={handleLogout}/>;
+  if(isMobile)return<MobileApp venue={venue} slots={todaySlots} ownerUnlocked={ownerUnlocked} onLogout={handleLogout} todayRevenue={mobileRevenue}/>;
 
   const navItems=[
     {id:"calendar",icon:"📅",label:"ตารางสนาม"},
@@ -2193,8 +2252,8 @@ export default function SquadPartner() {
         <main style={{padding:26,background:"#050f0a"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:12,marginBottom:22}}>
             <MetricCard icon="🏟️" value={todaySlots.length||0} label="Slot วันนี้" foot={`${liveCount} กำลัง live`} footColor={liveCount>0?C.green:C.sub} hi/>
-            <MetricCard icon="👥" value={todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จากทุก slot"/>
-            <MetricCard icon="💰" value={`฿${todaySlots.reduce((a,s)=>a+(s.amount||0),0).toLocaleString()}`} label="รายได้วันนี้" foot="รวมทุกช่องทาง"/>
+            <MetricCard icon="👥" value={dashboardPlayers||todaySlots.reduce((a,s)=>a+(s.players||0),0)} label="ผู้เล่นวันนี้" foot="จากทุก slot"/>
+            <MetricCard icon="💰" value={`฿${dashboardRevenue.toLocaleString()}`} label="รายได้วันนี้" foot="รวมทุกช่องทาง"/>
             <MetricCard icon="📊" value={todaySlots.length>0?`${utilPct}%`:"—"} label="Utilization" foot={`${fieldCount} สนาม`}/>
           </div>
 
