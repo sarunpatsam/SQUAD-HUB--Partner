@@ -17,6 +17,19 @@ const C = {
 };
 const OWNER_PIN = "198400";
 
+/* Force dark mode on all devices */
+if(typeof document !== "undefined") {
+  document.documentElement.style.colorScheme = "dark";
+  document.documentElement.setAttribute("data-theme", "dark");
+  const meta = document.querySelector("meta[name=color-scheme]");
+  if(!meta) {
+    const m = document.createElement("meta");
+    m.name = "color-scheme";
+    m.content = "dark";
+    document.head?.appendChild(m);
+  }
+}
+
 /* ═══ SHARED ═══ */
 const Wordmark = ({sm}) => (
   <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -1595,16 +1608,13 @@ const MatchEndTab = ({match,onDone,slots}) => {
         <Btn onClick={confirm} disabled={loading} style={{width:"100%",padding:14,fontSize:15}}>
           {loading?"กำลังส่ง...":"⏱ ยืนยันแมตช์จบ →"}
         </Btn>
-        {(!match?.id)&&(
+        {new URLSearchParams(window.location.search).get("dev")==="1" && !match?.id && (
   <div style={{marginTop:12}}>
-    <div style={{fontSize:12,color:C.muted,textAlign:"center",marginBottom:10}}>หรือทดสอบโดยไม่มี live slot:</div>
+    <div style={{fontSize:12,color:C.muted,textAlign:"center",marginBottom:10}}>Dev mode — ทดสอบโดยไม่มี live slot:</div>
     <button onClick={confirm} disabled={loading}
       style={{width:"100%",padding:"10px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",
         background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24"}}>
       {loading?"กำลังส่ง...":"🧪 Force End Match (Dev)"}
-      {new URLSearchParams(window.location.search).get("dev") === "1" && (!match?.id) && (
-  <div>...</div>
-)}
     </button>
   </div>
 )}
@@ -2081,7 +2091,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout,todayRevenue=0}) => {
         onClose={()=>setScanId(null)}
         onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setShowScanner(true);}}
       />}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}`}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{-webkit-tap-highlight-color:transparent;}html,body{background:#050f0a!important;color-scheme:dark!important;}*{box-sizing:border-box}`}</style>
     </div>
   );
 };
@@ -2309,7 +2319,7 @@ export default function SquadPartner() {
         onClose={()=>setScanId(null)}
         onScanNext={()=>{setScanId(null);setShowScanner(true);}}
       />}
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{box-sizing:border-box}input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}input[type="time"]{color-scheme:dark}`}</style>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}*{-webkit-tap-highlight-color:transparent;}html,body{background:#050f0a!important;color-scheme:dark!important;}*{box-sizing:border-box}input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.6;cursor:pointer}input[type="time"]{color-scheme:dark}`}</style>
     </div>
   );
 }
