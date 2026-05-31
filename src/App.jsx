@@ -744,12 +744,25 @@ const BookingConfirmTab = ({venueId}) => {
     return created;
   };
 
+  // ดึงจำนวนทีมจาก match_type string เช่น "7v7_3t" → 3
+  const parseTeamCount = (mt="") => {
+    const m = mt.match(/_(\d+)t$/);
+    return m ? Math.min(parseInt(m[1]),4) : 2;
+  };
+
   // สร้าง match_players สำหรับผู้เล่น (upsert — ไม่ซ้ำ)
-  const ensureMatchPlayer = async (matchId, playerId, venueId, displayName) => {
+  // slotId ใช้ดึง match_type เพื่อรู้จำนวนทีมจริง (A/B/C/D)
+  const ensureMatchPlayer = async (matchId, playerId, venueId, displayName, slotId) => {
     const teams = ["A","B","C","D"];
+    // ดึง match_type จาก slot → รู้ว่ามีกี่ทีม
+    let teamCount = 2;
+    if(slotId){
+      const {data:sl} = await supabase.from("slots").select("match_type").eq("id",slotId).maybeSingle();
+      teamCount = parseTeamCount(sl?.match_type||"");
+    }
     const {count} = await supabase.from("match_players")
       .select("id",{count:"exact",head:true}).eq("match_id",matchId);
-    const teamIdx = (count||0) % 2; // สลับ A/B ตามคิว
+    const teamIdx = (count||0) % teamCount; // กระจาย A→B→C→D ตาม teamCount
     await supabase.from("match_players").upsert({
       match_id:matchId, player_id:playerId, venue_id:venueId,
       team:teams[teamIdx]||"A",
@@ -784,13 +797,13 @@ const BookingConfirmTab = ({venueId}) => {
           if(!match?.id) continue;
 
           // เพิ่ม owner เข้า match_players
-          await ensureMatchPlayer(match.id, bk.player_id, venueId, bk.players?.display_name||"Player");
+          await ensureMatchPlayer(match.id, bk.player_id, venueId, bk.players?.display_name||"Player", bk.slot_id);
 
           // ถ้ามี party → เพิ่มสมาชิกทุกคนที่มี player_id
           const partyMembers = bk.booking_parties?.booking_party_members || [];
           for(const m of partyMembers) {
             if(m.player_id && m.player_id !== bk.player_id) {
-              await ensureMatchPlayer(match.id, m.player_id, venueId, m.display_name||"Friend");
+              await ensureMatchPlayer(match.id, m.player_id, venueId, m.display_name||"Friend", bk.slot_id);
             }
           }
 
