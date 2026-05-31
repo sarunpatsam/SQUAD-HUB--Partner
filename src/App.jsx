@@ -1693,16 +1693,37 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
 };
 
 /* ═══ MATCH END ═══ */
-const MatchEndTab = ({match,onDone,slots}) => {
+const MatchEndTab = ({match,onDone,slots,venueId}) => {
   const [sent,setSent]=useState(false);
   const [loading,setLoading]=useState(false);
-  const liveSlots = slots?.filter(s=>s.status==="live"||s.status==="captain_signaled")||[];
-  const endedToday = slots?.filter(s=>s.status==="ended"||s.status==="offline")||[];
+  // pendingSlots: query DB โดยตรง ไม่จำกัดวันที่ (รองรับ slot วันถัดไปด้วย)
+  const [pendingSlots,setPendingSlots]=useState(null); // null = loading
+  const [selectedSlot,setSelectedSlot]=useState(match||null);
+
+  useEffect(()=>{
+    if(!venueId){setPendingSlots([]);return;}
+    supabase.from("slots")
+      .select("id,date,start_time,end_time,match_type,status,notes,field_number,venue_id")
+      .eq("venue_id",venueId)
+      .in("status",["live","captain_signaled"])
+      .order("date").order("start_time")
+      .then(({data})=>{
+        const rows = data||[];
+        setPendingSlots(rows);
+        // auto-select ถ้ามีเพียง 1 slot
+        if(rows.length===1) setSelectedSlot(rows[0]);
+      });
+  },[venueId]);
+
+  // ถ้ายังไม่ได้เลือกจาก DB แต่มี match prop → ใช้ match prop
+  const currentSlot = selectedSlot || match;
+
   const confirm = async () => {
+    if(!currentSlot?.id){alert("กรุณาเลือก Match ก่อน");return;}
     setLoading(true);
     try {
       const now = new Date().toISOString();
-      const slotId = match?.id; // match prop = slot object จาก calendar
+      const slotId = currentSlot.id;
 
       // 1. หา match ที่ active ของ slot นี้ (match.id ≠ slot.id!)
       const {data:activeMatch} = await supabase.from("matches")
@@ -1714,21 +1735,19 @@ const MatchEndTab = ({match,onDone,slots}) => {
         .limit(1)
         .maybeSingle();
       const matchId = activeMatch?.id;
-      const venueId = activeMatch?.venue_id || match?.venue_id;
+      const vId = activeMatch?.venue_id || venueId;
 
       // 2. Update slot + match → ended
       if(slotId) await supabase.from("slots").update({status:"ended"}).eq("id",slotId);
       if(matchId) await supabase.from("matches").update({status:"ended",confirmed_end_at:now}).eq("id",matchId);
 
-      // 3. ดึง captain line_user_ids จาก captain_lookup ก่อน → fallback checked-in players
+      // 3. ดึง captain line_user_ids จาก captain_lookup → fallback checked-in players
       let captainLineIds = [];
       if(matchId){
         const {data:caps} = await supabase.from("captain_lookup")
           .select("line_user_id").eq("match_id",matchId).eq("is_captain",true);
         captainLineIds = (caps||[]).map(c=>c.line_user_id).filter(Boolean);
-
         if(!captainLineIds.length){
-          // fallback: ส่งให้ทุกคนที่ checked_in ในแมตช์
           const {data:mps} = await supabase.from("match_players")
             .select("player_id").eq("match_id",matchId).eq("checked_in",true);
           if(mps?.length){
@@ -1743,11 +1762,12 @@ const MatchEndTab = ({match,onDone,slots}) => {
       await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({match_id:matchId,venue_id:venueId,captain_line_ids:captainLineIds})
+        body:JSON.stringify({match_id:matchId,venue_id:vId,captain_line_ids:captainLineIds})
       });
     }catch(e){console.error("End match error:",e);}
     setSent(true);setLoading(false);
   };
+
   if(sent)return(
     <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:16,padding:28,textAlign:"center",maxWidth:500}}>
       <div style={{fontSize:36,marginBottom:14}}>✅</div>
@@ -1756,74 +1776,64 @@ const MatchEndTab = ({match,onDone,slots}) => {
       <Btn ghost onClick={onDone} style={{width:"100%"}}>กลับหน้าหลัก</Btn>
     </div>
   );
+
+  const hasPending = pendingSlots && pendingSlots.length > 0;
   return(
     <div style={{maxWidth:600}}>
-      {/* Match dashboard */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:22}}>
-        <div style={{background:"rgba(16,185,129,0.08)",border:`1px solid ${C.borderHi}`,borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:20,marginBottom:6}}>⏱️</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.greenBr,lineHeight:1}}>{liveSlots.length}</div>
-          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>กำลัง Live</div>
-          <div style={{fontSize:11,color:C.green,marginTop:3,fontWeight:700}}>รอยืนยันจบ</div>
+      {/* Pending matches list — query จาก DB ตรงๆ ไม่จำกัดวัน */}
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>
+          แมตช์รอยืนยันจบ
         </div>
-        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:20,marginBottom:6}}>✅</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{endedToday.length}</div>
-          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>จบแล้ววันนี้</div>
-          <div style={{fontSize:11,color:C.sub,marginTop:3,fontWeight:700}}>Stats บันทึกแล้ว</div>
-        </div>
-        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:20,marginBottom:6}}>👥</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,lineHeight:1}}>{liveSlots.reduce((a,s)=>a+(s.players||0),0)}</div>
-          <div style={{fontSize:10,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginTop:4}}>ผู้เล่น Live</div>
-          <div style={{fontSize:11,color:C.sub,marginTop:3,fontWeight:700}}>รอรับ XP + Stats</div>
-        </div>
+        {pendingSlots===null&&(
+          <div style={{textAlign:"center",padding:20,color:C.sub,fontSize:13}}>กำลังโหลด...</div>
+        )}
+        {pendingSlots!==null&&!hasPending&&(
+          <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:20,textAlign:"center",marginBottom:8}}>
+            <div style={{fontSize:24,marginBottom:8}}>🏁</div>
+            <div style={{fontSize:14,color:C.sub}}>ไม่มีแมตช์ที่กำลัง Live หรือรอยืนยันจบ</div>
+          </div>
+        )}
+        {hasPending&&pendingSlots.map(s=>{
+          const isSel = selectedSlot?.id===s.id;
+          const isSignaled = s.status==="captain_signaled";
+          return(
+            <div key={s.id} onClick={()=>setSelectedSlot(s)}
+              style={{background:C.bg2,border:`1.5px solid ${isSel?C.green:isSignaled?"rgba(251,191,36,0.4)":C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",transition:"border .15s"}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:isSignaled?"#fbbf24":C.green,flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:800,color:isSel?C.green:C.text}}>{s.notes||`Slot #${s.id}`}</div>
+                <div style={{fontSize:11,color:C.sub,marginTop:2}}>
+                  {s.date} · {s.start_time?.slice(0,5)}–{s.end_time?.slice(0,5)} · สนาม {s.field_number||1}
+                </div>
+              </div>
+              <span style={{fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99,background:isSignaled?"rgba(251,191,36,0.12)":"rgba(16,185,129,0.12)",color:isSignaled?"#fbbf24":C.green,border:`1px solid ${isSignaled?"rgba(251,191,36,0.3)":"rgba(16,185,129,0.3)"}`}}>
+                {isSignaled?"🙋 แจ้งจบแล้ว":"● LIVE"}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Live matches list */}
-      {liveSlots.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>แมตช์ที่กำลัง Live</div>
-          {liveSlots.map((s,i)=>(
-            <div key={i} style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:C.green,flexShrink:0}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:14,fontWeight:800,color:C.green}}>{s.name||`MATCH ${i+1}`}</div>
-                <div style={{fontSize:11,color:C.sub,marginTop:2}}>{s.time} · {s.players||0}/{s.total||14} คน · สนาม {s.field||1}</div>
-              </div>
-              <Tag color={C.green}>LIVE</Tag>
-            </div>
-          ))}
-        </div>
-      )}
-      {liveSlots.length===0&&(
-        <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:20,textAlign:"center",marginBottom:16}}>
-          <div style={{fontSize:24,marginBottom:8}}>🏁</div>
-          <div style={{fontSize:14,color:C.sub}}>ไม่มีแมตช์ที่กำลัง Live ตอนนี้</div>
-        </div>
-      )}
-
       {/* Confirm panel */}
-      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
+      <div style={{background:C.bg2,border:`1px solid ${currentSlot?.id?C.borderHi:C.border}`,borderRadius:16,padding:24}}>
         <div style={{fontSize:11,fontWeight:800,color:C.green,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>ยืนยันแมตช์จบ</div>
-        <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:6}}>{match?.name||"เลือก Match จาก calendar"}</div>
-        <div style={{fontSize:13,color:C.sub,marginBottom:20}}>{match?.time||"—"} · {match?.players||0} ผู้เล่น</div>
-        <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:22,fontSize:12,color:C.greenBr,lineHeight:1.9,fontWeight:700}}>
+        {currentSlot?.id?(
+          <div style={{fontSize:15,fontWeight:900,color:C.text,marginBottom:4}}>
+            {currentSlot.notes||`Slot #${currentSlot.id}`}
+          </div>
+        ):(
+          <div style={{fontSize:14,color:C.muted,marginBottom:4}}>เลือก Match ด้านบนก่อน</div>
+        )}
+        {currentSlot?.date&&(
+          <div style={{fontSize:12,color:C.sub,marginBottom:16}}>{currentSlot.date} · {currentSlot.start_time?.slice(0,5)}–{currentSlot.end_time?.slice(0,5)}</div>
+        )}
+        <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:20,fontSize:12,color:C.greenBr,lineHeight:1.9,fontWeight:700}}>
           หลังกดยืนยัน:<br/><span style={{color:C.sub,fontWeight:400}}>LINE Bot → แจ้งกัปตัน → กัปตันส่งสรุป → AI บันทึก Stats + XP</span>
         </div>
-        <Btn onClick={confirm} disabled={loading} style={{width:"100%",padding:14,fontSize:15}}>
+        <Btn onClick={confirm} disabled={loading||!currentSlot?.id} style={{width:"100%",padding:14,fontSize:15}}>
           {loading?"กำลังส่ง...":"⏱ ยืนยันแมตช์จบ →"}
         </Btn>
-        {new URLSearchParams(window.location.search).get("dev")==="1" && !match?.id && (
-  <div style={{marginTop:12}}>
-    <div style={{fontSize:12,color:C.muted,textAlign:"center",marginBottom:10}}>Dev mode — ทดสอบโดยไม่มี live slot:</div>
-    <button onClick={confirm} disabled={loading}
-      style={{width:"100%",padding:"10px",borderRadius:8,fontSize:12,fontWeight:800,cursor:"pointer",
-        background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24"}}>
-      {loading?"กำลังส่ง...":"🧪 Force End Match (Dev)"}
-    </button>
-  </div>
-)}
       </div>
     </div>
   );
@@ -2231,7 +2241,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout,todayRevenue=0}) => {
 
         {/* ── MATCH END ── */}
         {mTab==="matchend"&&(
-          <MatchEndTab match={activeMatch} onDone={()=>setMTab("scan")} slots={displaySlots}/>
+          <MatchEndTab match={activeMatch} onDone={()=>setMTab("scan")} slots={displaySlots} venueId={venue?.id}/>
         )}
 
         {/* ── FINANCE (owner only) ── */}
@@ -2506,7 +2516,7 @@ export default function SquadPartner() {
               </div>
             </div>
           )}
-          {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")} slots={todaySlots}/>}
+          {tab==="matchend"&&<MatchEndTab match={activeMatch} onDone={()=>setTab("calendar")} slots={todaySlots} venueId={venue?.id}/>}
           {tab==="shop"&&<ShopTab venueId={venue?.id} ownerUnlocked={ownerUnlocked}/>}
           {tab==="finance"&&<FinanceTab venue={venue} todaySlots={todaySlots}/>}
           {tab==="booking"&&(
