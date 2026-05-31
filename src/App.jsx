@@ -16,6 +16,7 @@ const C = {
   red:"#ef4444", amber:"#fbbf24",
 };
 const OWNER_PIN = "198400";
+const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 
 /* Force dark mode on all devices */
 if(typeof document !== "undefined") {
