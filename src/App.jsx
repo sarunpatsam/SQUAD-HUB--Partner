@@ -17,6 +17,19 @@ const C = {
 };
 const OWNER_PIN = "198400";
 const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+const LEVEL_CFG = {
+  friendly:{emoji:"💚",label:"Friendly",bg:"rgba(16,212,132,0.15)",color:"#10d484",border:"rgba(16,212,132,0.35)"},
+  pro:     {emoji:"🧡",label:"Pro",     bg:"rgba(251,191,36,0.12)",color:"#fbbf24",border:"rgba(251,191,36,0.35)"},
+  league:  {emoji:"❤️",label:"League",  bg:"rgba(239,68,68,0.12)", color:"#ef4444",border:"rgba(239,68,68,0.35)"},
+};
+const LevelChip = ({level,style={}}) => {
+  const cfg = LEVEL_CFG[level] || LEVEL_CFG.friendly;
+  return (
+    <span style={{display:"inline-flex",alignItems:"center",gap:2,padding:"1px 5px",borderRadius:4,fontSize:8,fontWeight:800,background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.border}`,letterSpacing:.3,...style}}>
+      {cfg.emoji} {cfg.label}
+    </span>
+  );
+};
 
 /* Force dark mode on all devices */
 if(typeof document !== "undefined") {
@@ -524,6 +537,7 @@ const DayView = ({fields,slots,date,onSelectSlot}) => {
                       {slot.status==="blocked"?"🚫 บล็อก":slot.status==="cancelled"?"❌ ยกเลิก":slot.name||"—"}
                     </div>
                     <div style={{fontSize:9,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"} · {slot.players||0}/{slot.total||14}</div>
+                    {slot.game_level&&<LevelChip level={slot.game_level} style={{marginTop:2}}/>}
                     {slot.status==="live"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(16,185,129,0.2)",color:C.greenBr,border:`1px solid rgba(16,185,129,0.4)`,display:"inline-block",marginTop:3}}>● LIVE</div>}
                     {slot.status==="blocked"&&<div style={{fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99,background:"rgba(239,68,68,0.15)",color:"#ef4444",border:`1px solid rgba(239,68,68,0.35)`,display:"inline-block",marginTop:3}}>● BLOCKED</div>}
                     {dur>1&&<div style={{position:"absolute",bottom:5,right:8,fontSize:9,color:C.muted}}>{slot.time}–{slot.endTime||"—"}</div>}
@@ -583,6 +597,7 @@ const WeekView = ({slots,weekStart,onSelectSlot}) => {
                   <div style={{height:"100%",borderRadius:6,padding:"5px 7px",cursor:"pointer",background:slot.status==="live"?"rgba(16,185,129,0.2)":slot.source==="platform"?"rgba(16,185,129,0.1)":"rgba(255,255,255,0.04)",border:`1px solid ${slot.status==="live"?"rgba(16,185,129,0.6)":slot.source==="platform"?"rgba(16,185,129,0.3)":"rgba(255,255,255,0.1)"}`,fontSize:10,fontWeight:800,color:slot.status==="live"?C.greenBr:C.text}}>
                     <div style={{lineHeight:1.2}}>{slot.name}</div>
                     <div style={{fontSize:9,color:C.sub,marginTop:2}}>{slot.players}/{slot.total}</div>
+                    {slot.game_level&&<LevelChip level={slot.game_level} style={{marginTop:2}}/>}
                     {slot.status==="live"&&<div style={{fontSize:8,color:C.greenBr}}>● LIVE</div>}
                   </div>
                 ):(
@@ -1190,6 +1205,7 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
   const [mode,setMode]=useState("create");
   const [type,setType]=useState("platform");
   const [name,setName]=useState("");
+  const [customerContact,setCustomerContact]=useState("");
   const [time,setTime]=useState(selected?.time||"18:00");
   const [endTime,setEndTime]=useState(selected?.endTime||"20:00");
   const [price,setPrice]=useState("150");
@@ -1202,6 +1218,7 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
   const [done,setDone]=useState(null);
   const [confirm,setConfirm]=useState(false);
   const [fieldNum,setFieldNum]=useState(selected?.fieldNum||1);
+  const [gameLevel,setGameLevel]=useState("friendly");
 
   useEffect(()=>{
     if(!selected) return;
@@ -1230,6 +1247,9 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
       const roomName = type==="platform"
         ? `MATCH #SQ-${slotDate.replace(/-/g,"")}-F${fn}`
         : (name?.trim()||"Offline Booking");
+      const offlineNote = type==="offline" && (name?.trim() || customerContact?.trim())
+        ? `${name?.trim()||"Offline Booking"}${customerContact?.trim()?` · ${customerContact.trim()}`:""}`
+        : roomName;
       const {error} = await supabase.from("slots").insert({
         venue_id: venueId,
         date: slotDate,
@@ -1240,7 +1260,9 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
         match_type: matchType,
         status: type==="platform"?"open":"offline",
         field_number: fn,
-        notes: roomName,
+        notes: type==="offline" ? offlineNote : roomName,
+        offline_customer_name: type==="offline" ? (name?.trim()||null) : null,
+        game_level: gameLevel,
       });
       if(error) throw error;
       setDone("success");
@@ -1262,6 +1284,7 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
         price_per_player: parseInt(price)||0,
         max_players: maxPlayers[matchType]||14,
         match_type: matchType,
+        game_level: gameLevel,
       }).eq("id", selected.slot.id);
       if(error) throw error;
       setDone("success");
@@ -1401,9 +1424,19 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
             ))}
           </div>
           {type==="offline"&&(
-            <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:14,lineHeight:1.6}}>
-              ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
-            </div>
+            <>
+              <div style={{background:"rgba(251,191,36,0.06)",border:`1px solid rgba(251,191,36,0.2)`,borderRadius:8,padding:"9px 12px",fontSize:11,color:C.amber,marginBottom:14,lineHeight:1.6}}>
+                ⚠ Offline ไม่ได้ Stats Card, XP หรือสิทธิ์บน Platform
+              </div>
+              <div style={{marginBottom:4}}>
+                <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ชื่อลูกค้า</div>
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="ชื่อ-นามสกุล / ชื่อทีม" style={inp}/>
+              </div>
+              <div style={{marginBottom:4}}>
+                <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>เบอร์โทร / LINE ID</div>
+                <input value={customerContact} onChange={e=>setCustomerContact(e.target.value)} placeholder="08x-xxx-xxxx หรือ @lineid" style={inp}/>
+              </div>
+            </>
           )}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
             <div>
@@ -1444,13 +1477,23 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
 </select>
             </div>
           </div>
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>สนามที่</div>
-            <select value={fieldNum} onChange={e=>setFieldNum(parseInt(e.target.value))} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
-              {[1,2,3,4,5].map(n=>(
-                <option key={n} style={{background:"#091510"}} value={n}>สนาม {n}</option>
-              ))}
-            </select>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>สนามที่</div>
+              <select value={fieldNum} onChange={e=>setFieldNum(parseInt(e.target.value))} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+                {[1,2,3,4,5].map(n=>(
+                  <option key={n} style={{background:"#091510"}} value={n}>สนาม {n}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5}}>ระดับเกม</div>
+              <select value={gameLevel} onChange={e=>setGameLevel(e.target.value)} style={{...inp,color:C.text,marginBottom:0,background:"#091510"}}>
+                <option value="friendly" style={{background:"#091510"}}>💚 Friendly</option>
+                <option value="pro"      style={{background:"#091510"}}>🧡 Pro</option>
+                <option value="league"   style={{background:"#091510"}}>❤️ League</option>
+              </select>
+            </div>
           </div>
           <Btn onClick={handleCreate} disabled={loading} style={{width:"100%",padding:13}}>
             {loading?"กำลังสร้าง...":"สร้าง slot → ผู้เล่นเห็นทันที"}
