@@ -342,30 +342,30 @@ const ScanResult = ({playerId,venueId,onClose,onScanNext}) => {
     // 2. Update match_players in DB
     try{
       const now=new Date().toISOString();
-      const today=now.split("T")[0];
 
       if(venueId){
-        // หา match จาก slot ของสนามวันนี้ (ไม่ filter status ของ slot — ครอบคลุม ended ด้วย)
-        const {data:todaySlots}=await supabase.from("slots")
-          .select("id").eq("venue_id",venueId).eq("date",today);
-        if(todaySlots?.length){
-          const slotIds=todaySlots.map(s=>s.id);
-          const {data:matches}=await supabase.from("matches")
-            .select("id").in("slot_id",slotIds)
-            .neq("status","cancelled");
-          if(matches?.length){
-            const matchIds=matches.map(m=>m.id);
-            await supabase.from("match_players")
-              .update({checked_in:true,checked_in_at:now})
-              .in("match_id",matchIds).eq("player_id",playerId);
-          }
+        // หา matches ของ venue นี้โดยตรง — ไม่ filter by date (รองรับ slot วันถัดไปด้วย)
+        const {data:venueMatches}=await supabase.from("matches")
+          .select("id,slot_id")
+          .eq("venue_id",venueId)
+          .neq("status","completed")
+          .neq("status","cancelled");
+        if(venueMatches?.length){
+          const matchIds=venueMatches.map(m=>m.id);
+          const slotIds=[...new Set(venueMatches.map(m=>m.slot_id).filter(Boolean))];
+          // update match_players
+          await supabase.from("match_players")
+            .update({checked_in:true,checked_in_at:now})
+            .in("match_id",matchIds).eq("player_id",playerId);
           // B5: update booking_party_members ด้วย
-          const {data:partyRows}=await supabase.from("booking_parties")
-            .select("id").in("slot_id",slotIds);
-          if(partyRows?.length){
-            await supabase.from("booking_party_members")
-              .update({checked_in:true,checked_in_at:now})
-              .in("party_id",partyRows.map(p=>p.id)).eq("player_id",playerId);
+          if(slotIds.length){
+            const {data:partyRows}=await supabase.from("booking_parties")
+              .select("id").in("slot_id",slotIds);
+            if(partyRows?.length){
+              await supabase.from("booking_party_members")
+                .update({checked_in:true,checked_in_at:now})
+                .in("party_id",partyRows.map(p=>p.id)).eq("player_id",playerId);
+            }
           }
         }
       } else {
