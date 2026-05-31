@@ -1696,12 +1696,56 @@ const BookingPanel = ({selected,venueId,calDate,onSave,onRefresh}) => {
 const MatchEndTab = ({match,onDone,slots}) => {
   const [sent,setSent]=useState(false);
   const [loading,setLoading]=useState(false);
-  const liveSlots = slots?.filter(s=>s.status==="live")||[];
+  const liveSlots = slots?.filter(s=>s.status==="live"||s.status==="captain_signaled")||[];
   const endedToday = slots?.filter(s=>s.status==="ended"||s.status==="offline")||[];
   const confirm = async () => {
     setLoading(true);
-    try { await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({match_id:match?.id||1,venue_id:match?.venue_id||1,captain_line_ids:["Udb987d8a26b71d5bb63fc976b1f0179f"]})}); }
-    catch(e){console.error(e);}
+    try {
+      const now = new Date().toISOString();
+      const slotId = match?.id; // match prop = slot object จาก calendar
+
+      // 1. หา match ที่ active ของ slot นี้ (match.id ≠ slot.id!)
+      const {data:activeMatch} = await supabase.from("matches")
+        .select("id,venue_id")
+        .eq("slot_id", slotId)
+        .neq("status","completed")
+        .neq("status","cancelled")
+        .order("created_at",{ascending:false})
+        .limit(1)
+        .maybeSingle();
+      const matchId = activeMatch?.id;
+      const venueId = activeMatch?.venue_id || match?.venue_id;
+
+      // 2. Update slot + match → ended
+      if(slotId) await supabase.from("slots").update({status:"ended"}).eq("id",slotId);
+      if(matchId) await supabase.from("matches").update({status:"ended",confirmed_end_at:now}).eq("id",matchId);
+
+      // 3. ดึง captain line_user_ids จาก captain_lookup ก่อน → fallback checked-in players
+      let captainLineIds = [];
+      if(matchId){
+        const {data:caps} = await supabase.from("captain_lookup")
+          .select("line_user_id").eq("match_id",matchId).eq("is_captain",true);
+        captainLineIds = (caps||[]).map(c=>c.line_user_id).filter(Boolean);
+
+        if(!captainLineIds.length){
+          // fallback: ส่งให้ทุกคนที่ checked_in ในแมตช์
+          const {data:mps} = await supabase.from("match_players")
+            .select("player_id").eq("match_id",matchId).eq("checked_in",true);
+          if(mps?.length){
+            const {data:pls} = await supabase.from("players")
+              .select("line_user_id").in("id",mps.map(m=>m.player_id).filter(Boolean));
+            captainLineIds = (pls||[]).map(p=>p.line_user_id).filter(Boolean);
+          }
+        }
+      }
+
+      // 4. POST n8n
+      await fetch("https://primary-production-e855.up.railway.app/webhook/match-end",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({match_id:matchId,venue_id:venueId,captain_line_ids:captainLineIds})
+      });
+    }catch(e){console.error("End match error:",e);}
     setSent(true);setLoading(false);
   };
   if(sent)return(
@@ -2028,7 +2072,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout,todayRevenue=0}) => {
   const [activeMatch,setActiveMatch]=useState(null);
   const [showOwnerPin,setShowOwnerPin]=useState(false);
   const [mOwner,setMOwner]=useState(ownerUnlocked||false);
-  const liveSlots=slots.filter(s=>s.status==="live");
+  const liveSlots=slots.filter(s=>s.status==="live"||s.status==="captain_signaled");
 
   const mNavItems=[
   {id:"scan",icon:"🔲",label:"Scan"},
@@ -2133,9 +2177,9 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout,todayRevenue=0}) => {
               return(
                 <div key={fi} style={{padding:3}}>
                   {slot?(
-                    <div onClick={()=>{if(slot.status==="live"){setActiveMatch(slot);setMTab("matchend");}}}
-                      style={{height:"100%",borderRadius:8,padding:"7px 8px",background:slot.status==="live"?"rgba(16,185,129,0.18)":slot.source==="platform"?"rgba(16,185,129,0.08)":slot.status==="full"?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${slot.status==="live"?"rgba(16,185,129,0.6)":slot.source==="platform"?"rgba(16,185,129,0.28)":slot.status==="full"?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.1)"}`,cursor:"pointer"}}>
-                      <div style={{fontSize:10,fontWeight:800,color:slot.status==="live"?C.greenBr:C.text,lineHeight:1.3,marginBottom:2}}>{slot.name||"—"}</div>
+                    <div onClick={()=>{if(slot.status==="live"||slot.status==="captain_signaled"){setActiveMatch(slot);setMTab("matchend");}}}
+                      style={{height:"100%",borderRadius:8,padding:"7px 8px",background:slot.status==="live"||slot.status==="captain_signaled"?"rgba(16,185,129,0.18)":slot.source==="platform"?"rgba(16,185,129,0.08)":slot.status==="full"?"rgba(239,68,68,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${slot.status==="live"||slot.status==="captain_signaled"?"rgba(16,185,129,0.6)":slot.source==="platform"?"rgba(16,185,129,0.28)":slot.status==="full"?"rgba(239,68,68,0.25)":"rgba(255,255,255,0.1)"}`,cursor:"pointer"}}>
+                      <div style={{fontSize:10,fontWeight:800,color:slot.status==="live"||slot.status==="captain_signaled"?C.greenBr:C.text,lineHeight:1.3,marginBottom:2}}>{slot.name||"—"}</div>
                       <div style={{fontSize:8,color:C.sub}}>{slot.source==="platform"?"Platform":"Offline"}</div>
                       {slot.total>0&&(
                         <div style={{display:"flex",gap:2,marginTop:4,flexWrap:"wrap"}}>
@@ -2341,7 +2385,7 @@ export default function SquadPartner() {
   const todaySlots=slots.filter(s=>s.date===calDateStr);
   const todayStr=new Date().toISOString().split("T")[0];
   const todaySlotsReal=slots.filter(s=>s.date===todayStr);
-  const liveCount=todaySlotsReal.filter(s=>s.status==="live").length;
+  const liveCount=todaySlotsReal.filter(s=>s.status==="live"||s.status==="captain_signaled").length;
 
   // คำนวณ field_count จาก slots จริง ถ้าไม่มีใช้ venue.field_count
   const maxFieldFromSlots=slots.length>0?Math.max(...slots.map(s=>s.field||1)):0;
