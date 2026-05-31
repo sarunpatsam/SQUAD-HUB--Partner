@@ -341,30 +341,38 @@ const ScanResult = ({playerId,venueId,onClose,onScanNext}) => {
 
     // 2. Update match_players in DB
     try{
-      const today=new Date().toISOString().split("T")[0];
-      const {data:activeSlots}=await supabase.from("slots")
-        .select("id").eq("venue_id",venueId).eq("date",today)
-        .in("status",["open","live","confirmed","captain_signaled"]);
-      if(activeSlots?.length){
-        const slotIds=activeSlots.map(s=>s.id);
-        const {data:matches}=await supabase.from("matches")
-          .select("id").in("slot_id",slotIds)
-          .not("status","in","('completed','cancelled')");
-        if(matches?.length){
-          const matchIds=matches.map(m=>m.id);
-          await supabase.from("match_players")
-            .update({checked_in:true,checked_in_at:new Date().toISOString()})
-            .in("match_id",matchIds).eq("player_id",playerId);
+      const now=new Date().toISOString();
+      const today=now.split("T")[0];
+
+      if(venueId){
+        // หา match จาก slot ของสนามวันนี้ (ไม่ filter status ของ slot — ครอบคลุม ended ด้วย)
+        const {data:todaySlots}=await supabase.from("slots")
+          .select("id").eq("venue_id",venueId).eq("date",today);
+        if(todaySlots?.length){
+          const slotIds=todaySlots.map(s=>s.id);
+          const {data:matches}=await supabase.from("matches")
+            .select("id").in("slot_id",slotIds)
+            .neq("status","cancelled");
+          if(matches?.length){
+            const matchIds=matches.map(m=>m.id);
+            await supabase.from("match_players")
+              .update({checked_in:true,checked_in_at:now})
+              .in("match_id",matchIds).eq("player_id",playerId);
+          }
+          // B5: update booking_party_members ด้วย
+          const {data:partyRows}=await supabase.from("booking_parties")
+            .select("id").in("slot_id",slotIds);
+          if(partyRows?.length){
+            await supabase.from("booking_party_members")
+              .update({checked_in:true,checked_in_at:now})
+              .in("party_id",partyRows.map(p=>p.id)).eq("player_id",playerId);
+          }
         }
-        // B5: update party member checked_in too
-        const {data:partyRows}=await supabase.from("booking_parties")
-          .select("id").in("slot_id",slotIds);
-        if(partyRows?.length){
-          const pids=partyRows.map(p=>p.id);
-          await supabase.from("booking_party_members")
-            .update({checked_in:true,checked_in_at:new Date().toISOString()})
-            .in("party_id",pids).eq("player_id",playerId);
-        }
+      } else {
+        // Fallback: ไม่รู้ venueId → update match_players ทุก row ของ player นี้ที่ยังไม่ check-in
+        await supabase.from("match_players")
+          .update({checked_in:true,checked_in_at:now})
+          .eq("player_id",playerId).eq("checked_in",false);
       }
     }catch(e){console.error("checkin DB update:",e);}
 
@@ -719,17 +727,20 @@ const BookingConfirmTab = ({venueId}) => {
   };
 
   // หา/สร้าง match สำหรับ slot นี้ → return match object
-  const ensureMatch = async (slotId, venueId) => {
+  const ensureMatch = async (slotId, vId) => {
+    // ใช้ .neq().neq() แทน .not("in",...) ซึ่งมีปัญหา syntax ใน Supabase JS
     const {data:existing} = await supabase.from("matches")
       .select("id,venue_id,status")
       .eq("slot_id", slotId)
-      .not("status","in","('completed','cancelled')")
+      .neq("status","completed")
+      .neq("status","cancelled")
       .order("created_at",{ascending:false}).limit(1);
     if(existing?.[0]) return existing[0];
     const code = `SQ-${slotId}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
-    const {data:created} = await supabase.from("matches").insert({
-      slot_id:slotId, venue_id:venueId, match_code:code, status:"open"
+    const {data:created, error:cErr} = await supabase.from("matches").insert({
+      slot_id:slotId, venue_id:vId, match_code:code, status:"open"
     }).select("id,venue_id,status").single();
+    if(cErr) console.error("ensureMatch insert error:",cErr);
     return created;
   };
 
