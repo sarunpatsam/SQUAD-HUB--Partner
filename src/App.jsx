@@ -308,7 +308,7 @@ const QRScanner = ({onResult,onClose}) => {
 };
 
 /* ═══ SCAN RESULT ═══ */
-const ScanResult = ({playerId,onClose,onScanNext}) => {
+const ScanResult = ({playerId,venueId,onClose,onScanNext}) => {
   const [player,setPlayer]=useState(null);
   const [loading,setLoading]=useState(true);
   const [done,setDone]=useState(false);
@@ -331,12 +331,43 @@ const ScanResult = ({playerId,onClose,onScanNext}) => {
       });
   },[playerId]);
 
-  const handleCheckin = ()=>{
+  const handleCheckin = async ()=>{
+    // 1. SessionStorage anti-duplicate
     try{
       const map=JSON.parse(sessionStorage.getItem("sq_ci")||"{}");
-map[String(playerId)]=Date.now();
-sessionStorage.setItem("sq_ci",JSON.stringify(map));
+      map[String(playerId)]=Date.now();
+      sessionStorage.setItem("sq_ci",JSON.stringify(map));
     }catch{}
+
+    // 2. Update match_players in DB
+    try{
+      const today=new Date().toISOString().split("T")[0];
+      const {data:activeSlots}=await supabase.from("slots")
+        .select("id").eq("venue_id",venueId).eq("date",today)
+        .in("status",["open","live","confirmed","captain_signaled"]);
+      if(activeSlots?.length){
+        const slotIds=activeSlots.map(s=>s.id);
+        const {data:matches}=await supabase.from("matches")
+          .select("id").in("slot_id",slotIds)
+          .not("status","in","('completed','cancelled')");
+        if(matches?.length){
+          const matchIds=matches.map(m=>m.id);
+          await supabase.from("match_players")
+            .update({checked_in:true,checked_in_at:new Date().toISOString()})
+            .in("match_id",matchIds).eq("player_id",playerId);
+        }
+        // B5: update party member checked_in too
+        const {data:partyRows}=await supabase.from("booking_parties")
+          .select("id").in("slot_id",slotIds);
+        if(partyRows?.length){
+          const pids=partyRows.map(p=>p.id);
+          await supabase.from("booking_party_members")
+            .update({checked_in:true,checked_in_at:new Date().toISOString()})
+            .in("party_id",pids).eq("player_id",playerId);
+        }
+      }
+    }catch(e){console.error("checkin DB update:",e);}
+
     setDone(true);
   };
   if(loading)return(
@@ -680,11 +711,40 @@ const BookingConfirmTab = ({venueId}) => {
     setLoading(true);
     const {data} = await supabase
       .from("bookings")
-      .select("*, players(display_name,position,playstyle), slots(start_time,end_time,match_type,price_per_player)")
+      .select("*, players(display_name,position,playstyle), slots(start_time,end_time,match_type,price_per_player), booking_parties(id,size,owner_player_id,booking_party_members(id,position,player_id,line_user_id,display_name))")
       .eq("venue_id",venueId)
       .order("created_at",{ascending:false});
     if(data) setBookings(data);
     setLoading(false);
+  };
+
+  // หา/สร้าง match สำหรับ slot นี้ → return match object
+  const ensureMatch = async (slotId, venueId) => {
+    const {data:existing} = await supabase.from("matches")
+      .select("id,venue_id,status")
+      .eq("slot_id", slotId)
+      .not("status","in","('completed','cancelled')")
+      .order("created_at",{ascending:false}).limit(1);
+    if(existing?.[0]) return existing[0];
+    const code = `SQ-${slotId}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+    const {data:created} = await supabase.from("matches").insert({
+      slot_id:slotId, venue_id:venueId, match_code:code, status:"open"
+    }).select("id,venue_id,status").single();
+    return created;
+  };
+
+  // สร้าง match_players สำหรับผู้เล่น (upsert — ไม่ซ้ำ)
+  const ensureMatchPlayer = async (matchId, playerId, venueId, displayName) => {
+    const teams = ["A","B","C","D"];
+    const {count} = await supabase.from("match_players")
+      .select("id",{count:"exact",head:true}).eq("match_id",matchId);
+    const teamIdx = (count||0) % 2; // สลับ A/B ตามคิว
+    await supabase.from("match_players").upsert({
+      match_id:matchId, player_id:playerId, venue_id:venueId,
+      team:teams[teamIdx]||"A",
+      payment_status:"paid", amount_paid:0,
+      is_captain:false,
+    },{onConflict:"match_id,player_id"});
   };
 
   useEffect(()=>{
@@ -695,27 +755,56 @@ const BookingConfirmTab = ({venueId}) => {
 },[venueId]);
 
   const bulkAction = async(status) => {
-  await Promise.all(selected.map(id=>
-    supabase.from("bookings").update({
-      status,
-      confirmed_at: new Date().toISOString(),
-      confirmed_by: "partner"
-    }).eq("id", id)
-  ));
-
-  if(status === "confirmed") {
-    await Promise.all(selected.map(id =>
-      fetch("https://primary-production-e855.up.railway.app/webhook/booking-confirmed", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ booking_id: id })
-      })
+    await Promise.all(selected.map(id=>
+      supabase.from("bookings").update({
+        status,
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: "partner"
+      }).eq("id", id)
     ));
-  }
 
-  setSelected([]);
-  fetchBookings();
-};
+    if(status === "confirmed") {
+      // B3: ensureMatch + match_players สำหรับทุก booking ที่ confirm
+      const confirmedBks = bookings.filter(b=>selected.includes(b.id));
+      for(const bk of confirmedBks) {
+        if(!bk.slot_id || !bk.player_id) continue;
+        try {
+          const match = await ensureMatch(bk.slot_id, venueId);
+          if(!match?.id) continue;
+
+          // เพิ่ม owner เข้า match_players
+          await ensureMatchPlayer(match.id, bk.player_id, venueId, bk.players?.display_name||"Player");
+
+          // ถ้ามี party → เพิ่มสมาชิกทุกคนที่มี player_id
+          const partyMembers = bk.booking_parties?.booking_party_members || [];
+          for(const m of partyMembers) {
+            if(m.player_id && m.player_id !== bk.player_id) {
+              await ensureMatchPlayer(match.id, m.player_id, venueId, m.display_name||"Friend");
+            }
+          }
+
+          // Update booking_parties status ถ้ามี
+          if(bk.party_id) {
+            await supabase.from("booking_parties").update({
+              status:"confirmed",
+              confirmed_at: new Date().toISOString(),
+            }).eq("id", bk.party_id);
+          }
+        } catch(e) { console.error("ensureMatch error:",e); }
+      }
+
+      await Promise.all(selected.map(id =>
+        fetch("https://primary-production-e855.up.railway.app/webhook/booking-confirmed", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ booking_id: id })
+        })
+      ));
+    }
+
+    setSelected([]);
+    fetchBookings();
+  };
 
   const toggleSelect = (id) =>
     setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
@@ -858,9 +947,16 @@ const BookingConfirmTab = ({venueId}) => {
                   :<div style={{width:17,flexShrink:0}}/>
                 }
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                    <span style={{fontSize:14,fontWeight:800,color:C.text}}>{b.players?.display_name||"—"}</span>
-                    <span style={{fontSize:10,color:C.sub}}>{b.players?.position} · {b.players?.playstyle}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
+                    <span style={{fontSize:14,fontWeight:800,color:C.text}}>
+                      {b.players?.display_name||"—"}
+                      {b.booking_parties?.size>1&&<span style={{fontSize:12,color:C.sub}}> + {b.booking_parties.size-1} เพื่อน</span>}
+                    </span>
+                    {b.booking_parties?.size>1&&(
+                      <span style={{fontSize:8,fontWeight:900,padding:"2px 7px",borderRadius:99,background:"rgba(167,139,250,0.12)",color:"#a78bfa",border:"1px solid rgba(167,139,250,0.25)"}}>
+                        🎉 Party {b.booking_parties.size} คน
+                      </span>
+                    )}
                   </div>
                   <div style={{fontSize:11,color:C.sub}}>
                     {fmtDateTH(b.created_at?.slice(0,10))} · {b.slots?.start_time?.slice(0,5)||"—"}–{b.slots?.end_time?.slice(0,5)||"—"} · {formatMatchType(b.slots?.match_type||"")}
@@ -2142,7 +2238,7 @@ const MobileApp = ({venue,slots,ownerUnlocked,onLogout,todayRevenue=0}) => {
         setShowScanner(false);
         setScanId(parsed);
       }} onClose={()=>setShowScanner(false)}/>}
-      {!showScanner&&scanId&&<ScanResult playerId={scanId}
+      {!showScanner&&scanId&&<ScanResult playerId={scanId} venueId={venue?.id}
         onClose={()=>setScanId(null)}
         onScanNext={()=>{setScanId(null);setScanKey(k=>k+1);setShowScanner(true);}}
       />}
@@ -2370,7 +2466,7 @@ export default function SquadPartner() {
   setScanId(parsed);
   setShowScanner(false);
 }} onClose={()=>setShowScanner(false)}/>}
-      {scanId&&<ScanResult playerId={scanId}
+      {scanId&&<ScanResult playerId={scanId} venueId={venue?.id}
         onClose={()=>setScanId(null)}
         onScanNext={()=>{setScanId(null);setShowScanner(true);}}
       />}
