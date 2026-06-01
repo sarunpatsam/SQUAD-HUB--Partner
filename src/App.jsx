@@ -1712,16 +1712,30 @@ const MatchEndTab = ({match,onDone,slots,venueId}) => {
   // pendingSlots: query DB โดยตรง ไม่จำกัดวันที่ (รองรับ slot วันถัดไปด้วย)
   const [pendingSlots,setPendingSlots]=useState(null); // null = loading
   const [selectedSlot,setSelectedSlot]=useState(match||null);
+  const [roster,setRoster]=useState(null); // {teams:{A:[...],B:[...]}, resultSent:bool} | null=loading
+  const [rosterLoading,setRosterLoading]=useState(false);
 
   useEffect(()=>{
     if(!venueId){setPendingSlots([]);return;}
+    // รับ 2 แหล่ง: (1) สนามหมดเวลา = slot open/live ที่ date<=today + end_time เลยเวลาปัจจุบัน
+    //             (2) test path = captain แจ้งจบ (captain_signaled) / live
+    // หมายเหตุ: slot ที่จองยืนยันแล้วค้างที่ status 'open' (ไม่มี live/captain_signaled ใน DB จริง)
     supabase.from("slots")
       .select("id,date,start_time,end_time,match_type,status,notes,field_number,venue_id")
       .eq("venue_id",venueId)
-      .in("status",["live","captain_signaled"])
+      .in("status",["open","live","captain_signaled","full"])
       .order("date").order("start_time")
       .then(({data})=>{
-        const rows = data||[];
+        const now = new Date();
+        const todayStr = now.toISOString().split("T")[0];
+        const nowHM = now.toTimeString().slice(0,5); // "HH:MM"
+        const rows = (data||[]).filter(s=>{
+          if(s.status==="captain_signaled"||s.status==="live") return true; // test path / live
+          // real path: open/full ที่เล่นจบแล้ว (วันก่อนหน้า หรือวันนี้แต่ end_time ผ่านแล้ว)
+          if(s.date < todayStr) return true;
+          if(s.date===todayStr && (s.end_time||"").slice(0,5) < nowHM) return true;
+          return false;
+        });
         setPendingSlots(rows);
         // auto-select ถ้ามีเพียง 1 slot
         if(rows.length===1) setSelectedSlot(rows[0]);
@@ -1730,6 +1744,47 @@ const MatchEndTab = ({match,onDone,slots,venueId}) => {
 
   // ถ้ายังไม่ได้เลือกจาก DB แต่มี match prop → ใช้ match prop
   const currentSlot = selectedSlot || match;
+
+  // โหลด roster (รายชื่อแยกทีม + กัปตัน + สถานะส่งผล) ของ slot ที่เลือก
+  useEffect(()=>{
+    const slotId = currentSlot?.id;
+    if(!slotId){setRoster(null);return;}
+    let cancelled=false;
+    (async()=>{
+      setRosterLoading(true);
+      try{
+        const {data:m} = await supabase.from("matches")
+          .select("id,status,result_submitted_at")
+          .eq("slot_id",slotId).neq("status","cancelled")
+          .order("created_at",{ascending:false}).limit(1).maybeSingle();
+        if(!m?.id){ if(!cancelled)setRoster({teams:{},resultSent:false,empty:true}); return; }
+        const [{data:mps},{data:caps}] = await Promise.all([
+          supabase.from("match_players").select("player_id,team,checked_in").eq("match_id",m.id),
+          supabase.from("captain_lookup").select("player_id,team,is_captain,display_name").eq("match_id",m.id).eq("is_captain",true),
+        ]);
+        const pids=[...new Set((mps||[]).map(x=>x.player_id).filter(Boolean))];
+        let nameMap={};
+        if(pids.length){
+          const {data:pl}=await supabase.from("players").select("id,display_name").in("id",pids);
+          (pl||[]).forEach(p=>{nameMap[p.id]=p.display_name;});
+        }
+        const capPids=new Set((caps||[]).map(c=>c.player_id).filter(Boolean));
+        const teams={};
+        (mps||[]).forEach(x=>{
+          const t=x.team||"?";
+          (teams[t]=teams[t]||[]).push({
+            name: nameMap[x.player_id]||`Player ${x.player_id}`,
+            checkedIn: !!x.checked_in,
+            isCaptain: capPids.has(x.player_id),
+          });
+        });
+        const resultSent = m.status==="completed" || !!m.result_submitted_at;
+        if(!cancelled) setRoster({teams,resultSent,empty:(mps||[]).length===0});
+      }catch(e){ console.error("roster load:",e); if(!cancelled)setRoster(null); }
+      if(!cancelled)setRosterLoading(false);
+    })();
+    return ()=>{cancelled=true;};
+  },[currentSlot?.id]);
 
   const confirm = async () => {
     if(!currentSlot?.id){alert("กรุณาเลือก Match ก่อน");return;}
@@ -1810,18 +1865,25 @@ const MatchEndTab = ({match,onDone,slots,venueId}) => {
         {hasPending&&pendingSlots.map(s=>{
           const isSel = selectedSlot?.id===s.id;
           const isSignaled = s.status==="captain_signaled";
+          const isLive = s.status==="live";
+          // expired = open/full ที่เลยเวลาแล้ว (real path)
+          const dot = isSignaled?"#fbbf24":isLive?C.green:"#60a5fa";
+          const badgeTxt = isSignaled?"🙋 แจ้งจบแล้ว":isLive?"● LIVE":"⏱ หมดเวลา";
+          const badgeBg = isSignaled?"rgba(251,191,36,0.12)":isLive?"rgba(16,185,129,0.12)":"rgba(96,165,250,0.12)";
+          const badgeCol = isSignaled?"#fbbf24":isLive?C.green:"#60a5fa";
+          const borderCol = isSel?C.green:isSignaled?"rgba(251,191,36,0.4)":isLive?C.borderHi:"rgba(96,165,250,0.35)";
           return(
             <div key={s.id} onClick={()=>setSelectedSlot(s)}
-              style={{background:C.bg2,border:`1.5px solid ${isSel?C.green:isSignaled?"rgba(251,191,36,0.4)":C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",transition:"border .15s"}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:isSignaled?"#fbbf24":C.green,flexShrink:0}}/>
+              style={{background:C.bg2,border:`1.5px solid ${borderCol}`,borderRadius:12,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",transition:"border .15s"}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:dot,flexShrink:0}}/>
               <div style={{flex:1}}>
                 <div style={{fontSize:14,fontWeight:800,color:isSel?C.green:C.text}}>{s.notes||`Slot #${s.id}`}</div>
                 <div style={{fontSize:11,color:C.sub,marginTop:2}}>
                   {s.date} · {s.start_time?.slice(0,5)}–{s.end_time?.slice(0,5)} · สนาม {s.field_number||1}
                 </div>
               </div>
-              <span style={{fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99,background:isSignaled?"rgba(251,191,36,0.12)":"rgba(16,185,129,0.12)",color:isSignaled?"#fbbf24":C.green,border:`1px solid ${isSignaled?"rgba(251,191,36,0.3)":"rgba(16,185,129,0.3)"}`}}>
-                {isSignaled?"🙋 แจ้งจบแล้ว":"● LIVE"}
+              <span style={{fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99,background:badgeBg,color:badgeCol,border:`1px solid ${badgeCol}55`}}>
+                {badgeTxt}
               </span>
             </div>
           );
@@ -1841,6 +1903,54 @@ const MatchEndTab = ({match,onDone,slots,venueId}) => {
         {currentSlot?.date&&(
           <div style={{fontSize:12,color:C.sub,marginBottom:16}}>{currentSlot.date} · {currentSlot.start_time?.slice(0,5)}–{currentSlot.end_time?.slice(0,5)}</div>
         )}
+
+        {/* Roster แยกทีม + กัปตัน + สถานะส่งผล */}
+        {currentSlot?.id&&(()=>{
+          const TEAM_COL={A:"#10d484",B:"#60a5fa",C:"#fbbf24",D:"#a78bfa"};
+          if(rosterLoading&&!roster) return(
+            <div style={{textAlign:"center",padding:14,color:C.sub,fontSize:12,marginBottom:16}}>กำลังโหลดรายชื่อ...</div>
+          );
+          if(!roster) return null;
+          if(roster.empty) return(
+            <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:12,padding:14,marginBottom:16,fontSize:12,color:C.muted,textAlign:"center"}}>ยังไม่มีผู้เล่นใน match นี้</div>
+          );
+          const teamKeys=Object.keys(roster.teams).sort();
+          return(
+            <div style={{marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:800,color:C.sub,letterSpacing:1,textTransform:"uppercase"}}>รายชื่อผู้เล่น</div>
+                <span style={{fontSize:10,fontWeight:900,padding:"3px 9px",borderRadius:99,
+                  background:roster.resultSent?"rgba(16,185,129,0.14)":"rgba(96,165,250,0.1)",
+                  color:roster.resultSent?C.green:"#60a5fa",border:`1px solid ${roster.resultSent?C.green:"#60a5fa"}55`}}>
+                  {roster.resultSent?"✓ ส่งผลแล้ว":"○ ยังไม่ส่งผล"}
+                </span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {teamKeys.map(tk=>{
+                  const col=TEAM_COL[tk]||C.sub;
+                  const players=roster.teams[tk]||[];
+                  return(
+                    <div key={tk} style={{background:C.bg,border:`1px solid ${col}33`,borderRadius:12,padding:"10px 12px"}}>
+                      <div style={{fontSize:11,fontWeight:900,color:col,letterSpacing:1,marginBottom:8}}>ทีม {tk} · {players.length} คน</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {players.map((p,i)=>(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:C.text}}>
+                            <div title={p.checkedIn?"check-in แล้ว":"ยังไม่ check-in"} style={{width:7,height:7,borderRadius:"50%",background:p.checkedIn?C.green:C.muted,flexShrink:0}}/>
+                            <span style={{flex:1,fontWeight:p.isCaptain?800:500}}>{p.name}</span>
+                            {p.isCaptain&&(
+                              <span style={{fontSize:9,fontWeight:900,padding:"1px 6px",borderRadius:4,background:"rgba(251,191,36,0.14)",color:"#fbbf24"}}>© กัปตัน</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{background:C.greenDim,border:`1px solid ${C.borderHi}`,borderRadius:12,padding:"14px 16px",marginBottom:20,fontSize:12,color:C.greenBr,lineHeight:1.9,fontWeight:700}}>
           หลังกดยืนยัน:<br/><span style={{color:C.sub,fontWeight:400}}>LINE Bot → แจ้งกัปตัน → กัปตันส่งสรุป → AI บันทึก Stats + XP</span>
         </div>
